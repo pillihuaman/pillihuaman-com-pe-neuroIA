@@ -1,0 +1,89 @@
+#########################
+# Java / Spring Boot
+#########################
+*.class
+*.jar
+*.war
+*.ear
+*.log
+*.tmp
+*.bak
+*.swp
+*.db
+*.orig
+*.merge_file*
+hs_err_pid*
+rebel.xml
+
+#########################
+# Build / Output
+#########################
+/target/
+/build/
+/out/
+/bin/
+/deploy/
+/log/
+/.gradle/
+/.mvn/
+/.nb-gradle/
+
+#########################
+# IDEs
+#########################
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+# Eclipse
+*.project
+*.classpath
+*.cproject
+*.pydevproject
+.settings/
+.factorypath
+.externalToolBuilders/
+.loadpath
+# VSCode
+.vscode/
+
+#########################
+# Node / JS Tools
+#########################
+node_modules/
+node_tmp/
+npm-debug.log*
+/.awcache/
+.eslintcache
+/src/test/javascript/coverage/
+/src/test/javascript/PhantomJS*/
+
+#########################
+# OS-Specific
+#########################
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+# Windows
+Thumbs.db
+Desktop.ini
+
+#########################
+# SASS / Cache
+#########################
+.sass-cache/
+
+#########################
+# Gradle / Maven Wrapper
+#########################
+!gradle/wrapper/gradle-wrapper.jar
+!mvn/wrapper/maven-wrapper.jar
+
+#########################
+# Exceptions (keep artifacts)
+#########################
+!target/*.jar
+

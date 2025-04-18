@@ -1,0 +1,42 @@
+trigger:
+  branches:
+    include:
+      - main  # Ejecutar el pipeline solo en la rama 'main'
+
+pool:
+  vmImage: 'ubuntu-latest'  # Agente hospedado de Azure
+
+steps:
+  # 🔹 Compilar el proyecto con Maven
+  - task: Maven@3
+    inputs:
+      mavenPomFile: 'pom.xml'
+      goals: 'clean package'
+      publishJUnitResults: true
+      testResultsFiles: '**/surefire-reports/TEST-*.xml'
+      javaHomeOption: 'JDKVersion'
+      mavenVersionOption: 'Default'
+      mavenOptions: '-Xmx3072m'
+      sonarQubeRunAnalysis: false
+      isJacocoCoverageReportXML: false
+
+  # 🔹 Copiar el archivo JAR generado
+  - task: CopyFiles@2
+    inputs:
+      contents: 'target/*.jar'
+      targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+  # 🔹 Publicar los artefactos de la compilación
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: 'drop'
+
+  # 🔹 Desplegar en Azure Web App
+  - task: AzureWebApp@1
+    inputs:
+      azureSubscription: 'Azure subscription 1'  # Nombre de la suscripción en Azure DevOps
+      appName: 'Microsoft.HealthBot'  # Nombre de tu aplicación en Azure
+      resourceGroupName: 'zarmirRecurso2'  # Grupo de recursos
+      package: '$(Build.ArtifactStagingDirectory)/*.jar'
+      runtimeStack: 'JAVA|17-java17'  # Define la versión de Java (ajústala si es necesario)
