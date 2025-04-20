@@ -7,11 +7,9 @@ import pillihuaman.com.pe.lib.common.MyJsonWebToken;
 import pillihuaman.com.pe.lib.common.ReqBase;
 import pillihuaman.com.pe.lib.common.RespBase;
 import pillihuaman.com.pe.neuroIA.Service.FileProcessService;
-import pillihuaman.com.pe.neuroIA.Service.IAChatGpt;
 import pillihuaman.com.pe.neuroIA.Service.IAService;
 import pillihuaman.com.pe.neuroIA.dto.ReqIa;
 import pillihuaman.com.pe.neuroIA.dto.RespIa;
-import pillihuaman.com.pe.neuroIA.foreing.DeepSeekService;
 import pillihuaman.com.pe.neuroIA.foreing.ExternalApiService;
 import pillihuaman.com.pe.neuroIA.foreing.ExternalOPenIAService;
 import pillihuaman.com.pe.neuroIA.repository.store.dao.IaDAO;
@@ -29,8 +27,7 @@ public class IAServiceImpl implements IAService {
     private IaDAO iaDAO;
     @Autowired
     private ExternalApiService externalApiService;
-    @Autowired
-    private IAChatGpt iAChatGpt;
+
     @Autowired
     private FileProcessService fileProcessService;
     @Autowired
@@ -47,15 +44,11 @@ public class IAServiceImpl implements IAService {
         messages.add("User: " + request.getData().getTextIA());
 
         String chatResponse;
-        try {
-            chatResponse = iAChatGpt.generateText(messages, request.getData().getTextIA(), 150, 0.7);
-        } catch (IOException e) {
-            chatResponse = "Error al procesar la solicitud con OpenAI: " + e.getMessage();
-        }
+        // chatResponse = iAChatGpt.generateText(messages, request.getData().getTextIA(), 150, 0.7);
 
         // Crear objeto de respuesta con la información obtenida
         RespIa responseIa = new RespIa();
-        responseIa.setTextIA(chatResponse);
+        responseIa.setTextIA(null);
 
         return RespBase.<RespIa>builder()
                 .payload(null)

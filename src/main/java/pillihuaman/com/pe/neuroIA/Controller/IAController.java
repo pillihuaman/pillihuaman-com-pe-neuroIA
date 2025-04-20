@@ -2,7 +2,6 @@ package pillihuaman.com.pe.neuroIA.Controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,19 +9,17 @@ import org.springframework.web.multipart.MultipartFile;
 import pillihuaman.com.pe.lib.common.MyJsonWebToken;
 import pillihuaman.com.pe.lib.common.ReqBase;
 import pillihuaman.com.pe.lib.common.RespBase;
-import pillihuaman.com.pe.neuroIA.Help.Constantes;
+import pillihuaman.com.pe.neuroIA.Help.Constante;
 import pillihuaman.com.pe.neuroIA.JwtService;
-import pillihuaman.com.pe.neuroIA.Service.FileProcessService;
 import pillihuaman.com.pe.neuroIA.Service.IAService;
 import pillihuaman.com.pe.neuroIA.dto.ReqIa;
 import pillihuaman.com.pe.neuroIA.dto.RespIa;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping(Constantes.BASE_ENDPOINT + Constantes.ENDPOINT + "/iaService")
+@RequestMapping(Constante.BASE_ENDPOINT + Constante.ENDPOINT + "/iaService")
 public class IAController {
 
     @Autowired

@@ -1,13 +1,13 @@
 package pillihuaman.com.pe.neuroIA.Help;
 
 
-public class Constantes {
+public class Constante {
 public static final String CONSULTA_PERSONAS_POR_DOCUMENTO = "CONSULTA PERSONAS POR DOCUMENTO";
 
 	public static final String BASE_ENDPOINT = "{access:private|public}/v1";
 	public static final String ENDPOINT = "/ia";
 
-	private Constantes() {
+	private Constante() {
 		super();
 	}
 

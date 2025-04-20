@@ -14,6 +14,9 @@
 *.merge_file*
 hs_err_pid*
 rebel.xml
+# Ignorar archivos sensibles
+*.env
+src/main/resources/*.env
 
 #########################
 # Build / Output
@@ -87,3 +90,4 @@ Desktop.ini
 #########################
 !target/*.jar
 
+src/main/resources/.env
