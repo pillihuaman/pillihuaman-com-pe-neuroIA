@@ -8,8 +8,8 @@ on:
 env:
   EC2_INSTANCE_IP: 13.58.64.88
   EC2_USER: ec2-user
-  JAR_NAME: pillihuaman-com-neuroIA-0.0.1-SNAPSHOT.jar
-  APP_PORT: 8081  # update this if your app uses another port
+  JAR_NAME: pillihuaman.com.pe.neuroIA-0.0.1-SNAPSHOT.jar
+  APP_PORT: 8099  # update this if your app uses another port
 
 jobs:
   deploy:
