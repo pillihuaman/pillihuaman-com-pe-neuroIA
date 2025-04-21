@@ -9,7 +9,7 @@ env:
   EC2_INSTANCE_IP: 13.58.64.88
   EC2_USER: ec2-user
   JAR_NAME: pillihuaman.com.pe.neuroIA-0.0.1-SNAPSHOT.jar
-  APP_PORT: 8099  # update this if your app uses another port
+  APP_PORT: 8099
 
 jobs:
   deploy:
@@ -28,7 +28,7 @@ jobs:
 
       - name: Save EC2 key pair to file
         run: |
-          echo "${{ secrets.EC2_PRIVATE_KEY }}" > ec2_key.pem
+          printf "%s\n" "${{ secrets.EC2_PRIVATE_KEY }}" > ec2_key.pem
           chmod 400 ec2_key.pem
 
       - name: Install Java and Maven
@@ -43,6 +43,7 @@ jobs:
             --domain-owner 570123367471 \
             --query authorizationToken \
             --output text)
+
           mkdir -p ~/.m2
           sed "s|{{AUTH_TOKEN}}|$AUTH_TOKEN|g" ci/settings-template.xml > ~/.m2/settings.xml
 
@@ -53,11 +54,11 @@ jobs:
         run: |
           scp -i ec2_key.pem -o StrictHostKeyChecking=no target/${{ env.JAR_NAME }} ${{ env.EC2_USER }}@${{ env.EC2_INSTANCE_IP }}:/home/${{ env.EC2_USER }}/
 
-      - name: Restart microservice on EC2
+      - name: Restart NeuroIA microservice
         run: |
           ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_INSTANCE_IP }} << EOF
-            echo "Stopping old service..."
-            PID=\$(lsof -ti tcp:${{ env.APP_PORT }}) && kill -9 \$PID || echo "No process running"
-            echo "Starting new JAR..."
-            nohup java -jar /home/${{ env.EC2_USER }}/${{ env.JAR_NAME }} > neuroia.log 2>&1 &
+            echo "Killing previous microservice on port ${{ env.APP_PORT }}"
+            PID=\$(lsof -ti tcp:${{ env.APP_PORT }}) && kill -9 \$PID || echo "No process to kill"
+            echo "Starting new instance of ${{ env.JAR_NAME }}"
+            nohup java -jar /home/${{ env.EC2_USER }}/${{ env.JAR_NAME }} > log_neuroia.out 2>&1 &
           EOF
