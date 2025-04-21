@@ -56,9 +56,14 @@ jobs:
 
       - name: Restart NeuroIA microservice
         run: |
-          ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_INSTANCE_IP }} << EOF
-            echo "Killing previous microservice on port ${{ env.APP_PORT }}"
-            PID=\$(lsof -ti tcp:${{ env.APP_PORT }}) && kill -9 \$PID || echo "No process to kill"
-            echo "Starting new instance of ${{ env.JAR_NAME }}"
-            nohup java -jar /home/${{ env.EC2_USER }}/${{ env.JAR_NAME }} > log_neuroia.out 2>&1 &
+          ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_INSTANCE_IP }} << 'EOF'
+            echo "Installing Java 17 if not already installed"
+            sudo amazon-linux-extras enable corretto17 || true
+            sudo yum install -y java-17-amazon-corretto || true
+
+            echo "Killing previous microservice on port ${{ APP_PORT }}"
+            PID=\$(lsof -ti tcp:${APP_PORT}) && kill -9 \$PID || echo "No process to kill"
+
+            echo "Starting new instance of ${{ JAR_NAME }}"
+            nohup java -jar /home/${EC2_USER}/${JAR_NAME} > log_neuroia.out 2>&1 &
           EOF
