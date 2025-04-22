@@ -41,8 +41,9 @@ public class ExternalOPenIAService {
             ));*/
 
             taskContent.add(Map.of("type", "text", "text",
-                    "Analiza esta imagen de una boleta de venta peruana y" +
-                            " extrae únicamente los textos . Devuelve la información en el siguiente formato JSON estructurado"
+                    "Analiza detalladamente esta imagen de una factura o boleta. Extrae únicamente los textos visibles\n" +
+                            " y organízalos en formato JSON estructurado con los siguientes campos:\n" +
+                            "No expliques nada. Devuelve exclusivamente el contenido en JSON válido y bien formateado"
             ));
 
 
