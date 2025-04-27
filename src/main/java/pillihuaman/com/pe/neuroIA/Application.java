@@ -11,12 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import pillihuaman.com.pe.lib.exception.CustomRestExceptionHandlerGeneric;
 
-
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Collections;
 
 
@@ -30,8 +25,6 @@ import java.util.Collections;
         "pillihuaman.com.pe.neuroIA"
 })
 public class Application {
-
-
     public static void main(String[] args) throws IOException, InterruptedException {
 
         SpringApplication app = new SpringApplication(Application.class);
@@ -47,28 +40,6 @@ public class Application {
         });
 
         System.out.println("Application started successfully!");
-      /*  var body = """
-        {
-            "model": "deepseek-reasoner",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "How many r's are in the word Strawberry"
-                }
-            ]
-        }""";
-
-        var request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/chat/completions"))
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + API_KEY)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-
-        var client = HttpClient.newHttpClient();
-        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        var responseBody = response.body();
-        System.out.println(responseBody);*/
 
     }
 }

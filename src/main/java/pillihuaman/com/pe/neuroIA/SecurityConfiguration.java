@@ -21,11 +21,9 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfiguration {
     private final JwtAuthenticationFilter jwtAuthFilter;
-
     public SecurityConfiguration(JwtAuthenticationFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
     }
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -51,7 +49,6 @@ public class SecurityConfiguration {
 
         return http.build();
     }
-
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -61,13 +58,11 @@ public class SecurityConfiguration {
                 "http://d2af6r0c1o0bb2.cloudfront.net",
                 "http://10.0.2.2:8080",
                 "http://192.168.1.10:8080" // Replace with your frontend URLs
-
         ));
         configuration.setAllowedOrigins(List.of("http://localhost:4200")); // Allow Angular frontend
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
