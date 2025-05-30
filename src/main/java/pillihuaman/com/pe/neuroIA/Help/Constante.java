@@ -44,6 +44,7 @@ public static final String CONSULTA_PERSONAS_POR_DOCUMENTO = "CONSULTA PERSONAS 
 	
 	public static final String SERVER_500 = "500";
 	public static final String SERVER_400 = "400";
+	public static final int LIFE_TIME_IMG_AWS = 30;
 	public static final String FORMATO_FECHA_DD_MM_YYYY_HORA = "dd/MM/yyyy HH:mm:ss";
 	public static final String DW = "alamodaperu";
 	public static final String DR = "alamodaperu";

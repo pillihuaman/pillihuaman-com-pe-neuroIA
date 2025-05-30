@@ -1,5 +1,7 @@
 package pillihuaman.com.pe.neuroIA.repository.files.dao.implement;
 
+import com.mongodb.client.MongoCollection;
+import org.bson.conversions.Bson;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 import pillihuaman.com.pe.neuroIA.Help.Constante;
@@ -8,6 +10,7 @@ import pillihuaman.com.pe.neuroIA.repository.AzureAbstractMongoRepositoryImpl;
 import pillihuaman.com.pe.neuroIA.repository.files.FileMetadata;
 import pillihuaman.com.pe.neuroIA.repository.files.dao.FilesDAO;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -28,4 +31,18 @@ public class FilesDaoImplement extends AzureAbstractMongoRepositoryImpl<FileMeta
     public List<FileMetadata> getFilesResponse(ReqFile reqFile) {
         return List.of();
     }
+
+    @Override
+
+    public List<FileMetadata> findAllByFilter(Bson query) {
+        MongoCollection<FileMetadata> collection = getCollection(this.COLLECTION, FileMetadata.class);
+        return collection.find(query)
+                .into(new ArrayList<>());
+    }
+    @Override
+    public void deleteFileByQuery(Bson query) {
+        MongoCollection<FileMetadata> collection = getCollection(this.COLLECTION, FileMetadata.class);
+        collection.deleteOne(query);
+    }
+
 }
