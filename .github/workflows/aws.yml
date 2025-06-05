@@ -6,7 +6,9 @@ on:
       - main
 
 env:
-  EC2_INSTANCE_IP: 3.94.171.180 # ✅ actualiza con la IP pública correcta de EC2
+  AWS_REGION: us-east-2                   # Región de CodeArtifact
+  EC2_REGION: us-east-1                   # Región del EC2
+  EC2_INSTANCE_IP: 3.94.171.180           # IP pública del EC2
   EC2_USER: ec2-user
   JAR_NAME: pillihuaman.com.pe.neuroIA-0.0.1-SNAPSHOT.jar
   APP_PORT: 8099
@@ -19,17 +21,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Configure AWS credentials
+      - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Save EC2 key pair to file
         run: |
-          printf "%s\n" "${{ secrets.EC2_PRIVATE_KEY }}" > ec2_key.pem
+          echo "${{ secrets.EC2_KEY_PAIR_B64 }}" | base64 -d > ec2_key.pem
           chmod 400 ec2_key.pem
+
+      - name: Debug key format
+        run: |
+          file ec2_key.pem
+          head -n 5 ec2_key.pem
 
       - name: Install Java and Maven
         run: |
@@ -48,8 +55,20 @@ jobs:
           mkdir -p ~/.m2
           sed "s|{{AUTH_TOKEN}}|$AUTH_TOKEN|g" ci/settings-template.xml > ~/.m2/settings.xml
 
-      - name: Build the project
+      - name: Build the project with Maven
         run: mvn clean install -DskipTests
+
+      - name: Verify generated JAR and print contents of target/
+        run: |
+          echo "Listing target directory contents:"
+          ls -lah target/
+
+          if [ -f "target/${{ env.JAR_NAME }}" ]; then
+            echo "✅ JAR file found: ${{ env.JAR_NAME }}"
+          else
+            echo "❌ ERROR: JAR file not found: target/${{ env.JAR_NAME }}"
+            exit 1
+          fi
 
       - name: Copy JAR file to EC2 instance
         run: |
@@ -58,8 +77,8 @@ jobs:
       - name: Restart NeuroIA microservice
         run: |
           ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_INSTANCE_IP }} << EOF
-            echo "Killing previous microservice on port ${{ env.APP_PORT }}"
+            echo "🔁 Stopping any running instance on port ${{ env.APP_PORT }}"
             PID=\$(lsof -ti tcp:${{ env.APP_PORT }}) && kill -9 \$PID || echo "No process to kill"
-            echo "Starting new instance of ${{ env.JAR_NAME }}"
+            echo "🚀 Starting new instance of ${{ env.JAR_NAME }}"
             nohup java -jar /home/${{ env.EC2_USER }}/${{ env.JAR_NAME }} > log_neuroia.out 2>&1 &
           EOF
