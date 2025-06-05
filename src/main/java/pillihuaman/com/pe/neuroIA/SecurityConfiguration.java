@@ -53,11 +53,13 @@ public class SecurityConfiguration {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
+                "http://192.168.1.10:8080", // Replace with your frontend URLs
                 "http://localhost:4200",
                 "http://ec2-3-145-180-222.us-east-2.compute.amazonaws.com",
-                "http://d2af6r0c1o0bb2.cloudfront.net",
+                "http://d38ve8mwrujc52.cloudfront.net",
                 "http://10.0.2.2:8080",
-                "http://192.168.1.10:8080" // Replace with your frontend URLs
+                "http://ec2-44-203-50-221.compute-1.amazonaws.com:8091",
+                 "http://ec2-54-164-157-157.compute-1.amazonaws.com:8085"
         ));
         configuration.setAllowedOrigins(List.of("http://localhost:4200")); // Allow Angular frontend
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
