@@ -40,11 +40,13 @@ jobs:
         run: |
           AUTH_TOKEN=$(aws codeartifact get-authorization-token \
             --domain pillihuamanlib \
-            --domain-owner 570123367471 \
+            --domain-owner 020510965219 \  # ✅ cuenta nueva
+            --region us-east-1 \            # ⚠️ ajusta si es otra región
             --query authorizationToken \
             --output text)
-
-          mkdir -p ~/.m2
+          
+          
+           mkdir -p ~/.m2
           sed "s|{{AUTH_TOKEN}}|$AUTH_TOKEN|g" ci/settings-template.xml > ~/.m2/settings.xml
 
       - name: Build the project
