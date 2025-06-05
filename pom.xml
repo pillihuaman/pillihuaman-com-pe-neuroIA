@@ -8,7 +8,6 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.0.5</version>
-        <relativePath/>
     </parent>
 
     <groupId>pillihuaman.com.pe</groupId>
@@ -26,7 +25,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Spring AI BOM -->
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
@@ -34,8 +32,6 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
-            <!-- AWS SDK BOM -->
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
@@ -196,7 +192,7 @@
             <version>4.12.0</version>
         </dependency>
 
-        <!-- AWS SDK (sin version por BOM) -->
+        <!-- AWS SDK -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
@@ -246,29 +242,18 @@
             <version>6.2.4.Final</version>
         </dependency>
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>rds</artifactId>
-        </dependency>
-        <dependency>
             <groupId>pillihuaman.com.pe</groupId>
             <artifactId>pillihuaman.com.pe.lib</artifactId>
             <version>0.0.2-SNAPSHOT</version>
         </dependency>
     </dependencies>
+
     <repositories>
         <repository>
             <id>pillihuamanlib-pillihuaman-com-pe-lib</id>
             <url>https://pillihuamanlib-020510965219.d.codeartifact.us-east-2.amazonaws.com/maven/pillihuaman-com-pe-lib/</url>
         </repository>
     </repositories>
-
-    <distributionManagement>
-        <repository>
-            <id>pillihuamanlib-pillihuaman-com-pe-lib</id>
-            <name>CodeArtifact Maven repo</name>
-            <url>https://pillihuamanlib-020510965219.d.codeartifact.us-east-2.amazonaws.com/maven/pillihuaman-com-pe-lib/</url>
-        </repository>
-    </distributionManagement>
 
     <build>
         <plugins>
