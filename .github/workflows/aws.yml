@@ -41,7 +41,7 @@ jobs:
           AUTH_TOKEN=$(aws codeartifact get-authorization-token \
             --domain pillihuamanlib \
             --domain-owner 020510965219 \
-            --region us-east-1 \
+            --region ${{ env.AWS_REGION }} \
             --query authorizationToken \
             --output text)
 
