@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  EC2_INSTANCE_IP: 13.58.64.88
+  EC2_INSTANCE_IP: 3.94.171.180 # ✅ actualiza con la IP pública correcta de EC2
   EC2_USER: ec2-user
   JAR_NAME: pillihuaman.com.pe.neuroIA-0.0.1-SNAPSHOT.jar
   APP_PORT: 8099
@@ -24,7 +24,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
+          aws-region: us-east-1
 
       - name: Save EC2 key pair to file
         run: |
@@ -40,13 +40,12 @@ jobs:
         run: |
           AUTH_TOKEN=$(aws codeartifact get-authorization-token \
             --domain pillihuamanlib \
-            --domain-owner 020510965219 \  # ✅ cuenta nueva
-            --region us-east-1 \            # ⚠️ ajusta si es otra región
+            --domain-owner 020510965219 \
+            --region us-east-1 \
             --query authorizationToken \
             --output text)
-          
-          
-           mkdir -p ~/.m2
+
+          mkdir -p ~/.m2
           sed "s|{{AUTH_TOKEN}}|$AUTH_TOKEN|g" ci/settings-template.xml > ~/.m2/settings.xml
 
       - name: Build the project
