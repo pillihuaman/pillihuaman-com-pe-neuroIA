@@ -45,15 +45,18 @@ jobs:
 
       - name: Authenticate with AWS CodeArtifact and configure Maven
         run: |
-          AUTH_TOKEN=$(aws codeartifact get-authorization-token \
+          CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
             --domain pillihuamanlib \
             --domain-owner 020510965219 \
-            --region ${{ env.AWS_REGION }} \
+            --region us-east-2 \
             --query authorizationToken \
             --output text)
 
+          echo "Token obtenido correctamente ✅"
+
           mkdir -p ~/.m2
-          sed "s|{{AUTH_TOKEN}}|$AUTH_TOKEN|g" ci/settings-template.xml > ~/.m2/settings.xml
+          sed "s|{{AUTH_TOKEN}}|$CODEARTIFACT_AUTH_TOKEN|g" ci/settings-template.xml > ~/.m2/settings.xml
+      
 
       - name: Build the project with Maven
         run: mvn clean install -DskipTests
