@@ -48,7 +48,7 @@ jobs:
           CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
             --domain pillihuamanlib \
             --domain-owner 020510965219 \
-            --region us-east-2 \
+            --region ${{ env.AWS_REGION }} \
             --query authorizationToken \
             --output text)
 
@@ -56,7 +56,9 @@ jobs:
 
           mkdir -p ~/.m2
           sed "s|{{AUTH_TOKEN}}|$CODEARTIFACT_AUTH_TOKEN|g" ci/settings-template.xml > ~/.m2/settings.xml
-      
+
+      - name: Verificar settings.xml generado
+        run: cat ~/.m2/settings.xml
 
       - name: Build the project with Maven
         run: mvn clean install -DskipTests
