@@ -45,7 +45,7 @@ public class FileController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<RespFileMetadata>> uploadFiles(
             @RequestPart(value = "files", required = false) MultipartFile[] files,
-            @RequestPart("metadata") List<ReqFileMetadata> metadataDTOList,
+            @RequestParam("metadata") List<ReqFileMetadata> metadataDTOList,
             @RequestParam("productId") String productId) {
 
         MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
