@@ -1,5 +1,8 @@
 package pillihuaman.com.pe.neuroIA.Controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -41,14 +44,16 @@ public class FileController {
     private JwtService jwtService;
     @Autowired
     private HttpServletRequest httpServletRequest;
-
+    @Autowired
+    private ObjectMapper objectMapper;
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<RespFileMetadata>> uploadFiles(
             @RequestPart(value = "files", required = false) MultipartFile[] files,
-            @RequestParam("metadata") List<ReqFileMetadata> metadataDTOList,
-            @RequestParam("productId") String productId) {
+            @RequestPart("metadata") String metadataJson,
+            @RequestParam("productId") String productId) throws JsonProcessingException {
 
         MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
+        List<ReqFileMetadata> metadataDTOList = objectMapper.readValue(metadataJson, new TypeReference<List<ReqFileMetadata>>() {});
 
         List<RespFileMetadata> dtoList = IntStream.range(0, metadataDTOList.size()).mapToObj(i -> {
             ReqFileMetadata metaDTO = metadataDTOList.get(i);
@@ -62,28 +67,37 @@ public class FileController {
                 }
 
                 FileMetadata metadata;
+
                 if (metaDTO.getId() != null && !metaDTO.getId().isEmpty()) {
-                    // ACTUALIZACIÓN
+                    // ✅ ACTUALIZACIÓN
                     Bson query = eq("_id", new ObjectId(metaDTO.getId()));
                     metadata = metadataRepository.findOneById(query);
+
                     if (metadata != null) {
                         if (file != null) {
+                            // ✅ Solo setea filename si es diferente al actual
+                            if (!metadata.getFilename().equals(file.getOriginalFilename())) {
+                                metadata.setFilename(file.getOriginalFilename());
+                            }
+
                             metadata.setS3Key(key);
-                            metadata.setFilename(file.getOriginalFilename());
                             metadata.setContentType(file.getContentType());
                             metadata.setSize(file.getSize());
                             metadata.setUploadTimestamp(System.currentTimeMillis());
                         }
+
                         metadata.setDimension(metaDTO.getDimension());
                         metadata.setTypeFile(metaDTO.getTypeFile());
                         metadata.setPosition(metaDTO.getPosition());
                         metadata.setStatus(true);
                         metadataRepository.updateOne(query, metadata);
+
                     } else {
                         throw new RuntimeException("No se encontró metadata con ID: " + metaDTO.getId());
                     }
+
                 } else {
-                    // INSERCIÓN
+                    // ✅ INSERCIÓN
                     if (file == null) {
                         throw new IllegalArgumentException("El archivo es obligatorio para una nueva inserción.");
                     }
@@ -109,16 +123,19 @@ public class FileController {
                 dto.setFilename(metadata.getFilename());
                 dto.setDimension(metadata.getDimension());
                 dto.setPosition(metadata.getPosition());
-                //dto.setUrl(s3Service.generatePresignedUrl(metadata.getS3Key(), Duration.ofMinutes(Constante.LIFE_TIME_IMG_AWS)));
+                // dto.setUrl(s3Service.generatePresignedUrl(metadata.getS3Key(), Duration.ofMinutes(Constante.LIFE_TIME_IMG_AWS)));
 
                 return dto;
+
             } catch (Exception e) {
                 throw new RuntimeException("Error en procesamiento de metadata o archivo en índice " + i, e);
             }
+
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(dtoList);
     }
+
 
 
     @GetMapping("/{id}")
