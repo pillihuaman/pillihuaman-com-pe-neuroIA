@@ -61,7 +61,6 @@ public class SecurityConfiguration {
                 "http://ec2-44-203-50-221.compute-1.amazonaws.com:8091",
                  "http://ec2-54-164-157-157.compute-1.amazonaws.com:8085"
         ));
-        configuration.setAllowedOrigins(List.of("http://localhost:4200")); // Allow Angular frontend
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
