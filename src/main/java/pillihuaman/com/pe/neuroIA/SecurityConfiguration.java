@@ -30,7 +30,9 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        
                         .requestMatchers(
+                                "/private/v1/ia/files/getCatalogImagen",
                                 "/api/v1/auth/**",  // Public Auth Endpoints
                                 "/swagger-ui/**",   // Swagger UI
                                 "/v3/api-docs/**"   // API Docs
