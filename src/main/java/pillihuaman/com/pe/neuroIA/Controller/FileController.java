@@ -193,8 +193,15 @@ public class FileController {
             @RequestParam("typeImagen") String typeImagen,
             @RequestParam("productId") String productId) {
 
-        MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
-        String userId = token.getUser().getId().toString();
+        String authHeader = httpServletRequest.getHeader("Authorization");
+        String userId = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(authHeader);
+            userId = token.getUser().getId().toString();
+        }
+        else{
+            userId = "681630d97de714408c55fea5";
+        }
 
         Bson query = and(
                 eq("userId", userId),
