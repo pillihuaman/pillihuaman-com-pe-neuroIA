@@ -61,7 +61,11 @@ public class SecurityConfiguration {
                 "http://d38ve8mwrujc52.cloudfront.net",
                 "http://10.0.2.2:8080",
                 "http://ec2-44-203-50-221.compute-1.amazonaws.com:8091",
-                 "http://ec2-54-164-157-157.compute-1.amazonaws.com:8085"
+                 "http://ec2-54-164-157-157.compute-1.amazonaws.com:8085",
+                "https://neuroia.alamodaperu.online",
+                "https://support.alamodaperu.online",
+                "https://security.alamodaperu.online",
+                "https://alamodaperu.online"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
