@@ -22,6 +22,7 @@ import pillihuaman.com.pe.neuroIA.repository.files.FileMetadata;
 import pillihuaman.com.pe.neuroIA.repository.files.dao.FilesDAO;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -203,12 +204,15 @@ public class FileController {
             userId = "681630d97de714408c55fea5";
         }
 
-        Bson query = and(
-                eq("userId", userId),
-                eq("typeFile", typeImagen),
-                eq("status", true),
-                eq("productId", new ObjectId(productId))
-        );
+        List<Bson> filters = new ArrayList<>();
+        filters.add(eq("userId", userId));
+        filters.add(eq("typeFile", typeImagen));
+        filters.add(eq("status", true));
+
+        if (productId != null && ObjectId.isValid(productId)) {
+            filters.add(eq("productId", new ObjectId(productId)));
+        }
+        Bson query = and(filters);
 
         List<FileMetadata> files = metadataRepository.findAllByFilter(query);
 

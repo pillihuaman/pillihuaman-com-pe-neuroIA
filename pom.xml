@@ -237,7 +237,7 @@
         <dependency>
             <groupId>pillihuaman.com.pe</groupId>
             <artifactId>pillihuaman.com.pe.lib</artifactId>
-            <version>0.0.2-SNAPSHOT</version>
+            <version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
