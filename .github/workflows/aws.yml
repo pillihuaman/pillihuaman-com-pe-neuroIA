@@ -6,9 +6,9 @@ on:
       - main
 
 env:
-  AWS_REGION: us-east-2                   # Región de CodeArtifact
-  EC2_REGION: us-east-1                   # Región del EC2
-  EC2_INSTANCE_IP: 3.86.230.204           # IP pública del EC2
+  AWS_REGION: us-east-2
+  EC2_REGION: us-east-1
+  EC2_INSTANCE_IP: 52.86.30.21  # ✅ IP corregida
   EC2_USER: ec2-user
   JAR_NAME: pillihuaman.com.pe.neuroIA-0.0.1-SNAPSHOT.jar
   APP_PORT: 8099
