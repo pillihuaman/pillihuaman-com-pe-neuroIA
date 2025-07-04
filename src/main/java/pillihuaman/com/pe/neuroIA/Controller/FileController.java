@@ -188,20 +188,19 @@ public class FileController {
         metadataRepository.updateOne(query, metadata);
         return ResponseEntity.ok("File restored successfully.");
     }
-
     @GetMapping("/getCatalogImagen")
     public ResponseEntity<List<RespFileMetadata>> getCatalogImagen(
             @RequestParam("typeImagen") String typeImagen,
-            @RequestParam("productId") String productId) {
+            @RequestParam(value = "productId", required = false) String productId) {
 
         String authHeader = httpServletRequest.getHeader("Authorization");
         String userId = null;
+
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(authHeader);
             userId = token.getUser().getId().toString();
-        }
-        else{
-            userId = "681630d97de714408c55fea5";
+        } else {
+            userId = "681630d97de714408c55fea5"; // valor por defecto
         }
 
         List<Bson> filters = new ArrayList<>();
@@ -209,18 +208,18 @@ public class FileController {
         filters.add(eq("typeFile", typeImagen));
         filters.add(eq("status", true));
 
-        if (productId != null && ObjectId.isValid(productId)) {
+        // ✅ Solo agregar filtro si productId es válido, no nulo ni vacío
+        if (productId != null && !productId.trim().isEmpty() && ObjectId.isValid(productId)) {
             filters.add(eq("productId", new ObjectId(productId)));
         }
-        Bson query = and(filters);
 
+        Bson query = and(filters);
         List<FileMetadata> files = metadataRepository.findAllByFilter(query);
 
         if (files == null || files.isEmpty()) {
             return ResponseEntity.noContent().build();
         }
 
-        // Generar DTOs con URL firmada
         Duration duration = Duration.ofMinutes(Constante.LIFE_TIME_IMG_AWS);
         List<RespFileMetadata> response = files.stream().map(file -> {
             String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
@@ -243,6 +242,7 @@ public class FileController {
 
         return ResponseEntity.ok(response);
     }
+
 
 
 
