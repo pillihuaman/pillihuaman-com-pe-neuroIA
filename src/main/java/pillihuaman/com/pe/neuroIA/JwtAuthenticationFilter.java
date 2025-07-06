@@ -50,7 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Validate ANONYMOUS access to restricted paths
         String path = request.getRequestURI();
-        List<String> allowedForAnonymous = List.of(
+      /*  List<String> allowedForAnonymous = List.of(
                 "/private/v1/ia/files/getCatalogImagen"
         );
 
@@ -60,7 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 response.getWriter().write("Forbidden: ANONYMOUS users cannot access this resource");
                 return;
             }
-        }
+        }*/
 
         // Convert roles to Spring authorities
         List<SimpleGrantedAuthority> authorities = roles.stream()
