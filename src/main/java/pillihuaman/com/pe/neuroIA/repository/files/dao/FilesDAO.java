@@ -19,6 +19,6 @@ public interface FilesDAO  extends BaseMongoRepository<FileMetadata> {
 
     void deleteFileByQuery(Bson query);
 
+    List<FileMetadata>  findAllByFilter(Bson query, Bson orderBy, Integer limit);
 
-    List<FileMetadata> findAllByFilter(Bson query);
 }

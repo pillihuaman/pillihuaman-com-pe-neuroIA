@@ -3,6 +3,7 @@ package pillihuaman.com.pe.neuroIA.Controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.client.model.Sorts;
 import jakarta.servlet.http.HttpServletRequest;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -188,33 +189,36 @@ public class FileController {
         metadataRepository.updateOne(query, metadata);
         return ResponseEntity.ok("File restored successfully.");
     }
+// En tu FileController.java
+
     @GetMapping("/getCatalogImagen")
     public ResponseEntity<List<RespFileMetadata>> getCatalogImagen(
             @RequestParam("typeImagen") String typeImagen,
-            @RequestParam(value = "productId", required = false) String productId) {
-
-        String authHeader = httpServletRequest.getHeader("Authorization");
-        String userId = null;
-
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(authHeader);
-            userId = token.getUser().getId().toString();
-        } else {
-            userId = "681630d97de714408c55fea5"; // valor por defecto
-        }
+            @RequestParam(value = "productId", required = false) String productId) { // productId ahora es opcional
 
         List<Bson> filters = new ArrayList<>();
-        filters.add(eq("userId", userId));
         filters.add(eq("typeFile", typeImagen));
         filters.add(eq("status", true));
 
-        // ✅ Solo agregar filtro si productId es válido, no nulo ni vacío
-        if (productId != null && !productId.trim().isEmpty() && ObjectId.isValid(productId)) {
+        Integer limit = null;
+        Bson orderBy = null;
+
+        if (productId != null && !productId.trim().isEmpty()) {
+            if (!ObjectId.isValid(productId)) {
+                return ResponseEntity.badRequest().body(null);
+            }
             filters.add(eq("productId", new ObjectId(productId)));
+            orderBy = Sorts.ascending("order"); // Ordenar por campo 'order' si existe
+
+        } else {
+            orderBy = Sorts.descending("uploadTimestamp"); // Ordenar por fecha de subida
+            limit = 50; // Limitar a 20 resultados
         }
 
         Bson query = and(filters);
-        List<FileMetadata> files = metadataRepository.findAllByFilter(query);
+
+        // --- LLAMADA AL NUEVO MÉTODO DEL DAO ---
+        List<FileMetadata> files = metadataRepository.findAllByFilter(query, orderBy, limit);
 
         if (files == null || files.isEmpty()) {
             return ResponseEntity.noContent().build();
@@ -237,12 +241,13 @@ public class FileController {
                     .typeFile(file.getTypeFile())
                     .url(presignedUrl)
                     .position(file.getPosition())
+                    // Si la imagen de la home está asociada a un producto, también puedes incluir su ID
+                    .productId(file.getProductId() != null ? file.getProductId().toString() : null)
                     .build();
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
     }
-
 
 
 
