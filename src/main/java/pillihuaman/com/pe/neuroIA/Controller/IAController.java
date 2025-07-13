@@ -12,6 +12,8 @@ import pillihuaman.com.pe.lib.common.RespBase;
 import pillihuaman.com.pe.neuroIA.Help.Constante;
 import pillihuaman.com.pe.neuroIA.JwtService;
 import pillihuaman.com.pe.neuroIA.Service.IAService;
+import pillihuaman.com.pe.neuroIA.dto.ChatRequest;
+import pillihuaman.com.pe.neuroIA.dto.ChatResponse;
 import pillihuaman.com.pe.neuroIA.dto.ReqIa;
 import pillihuaman.com.pe.neuroIA.dto.RespIa;
 
@@ -53,24 +55,15 @@ public class IAController {
         return ResponseEntity.ok(iAService.analyzeImageOpenIA(token, file));
     }
 
-    @PostMapping(value = "/deepseek-chat", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<RespBase<RespIa>> askDeepSeek(@RequestBody Map<String, String> requestBody) throws IOException {
-        String prompt = requestBody.get("prompt");
+    @PostMapping(value = "/deepseek-chat", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<RespBase<ChatResponse>> chatbotInteraction(@RequestBody ChatRequest chatRequest) throws IOException {
         MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
 
-        // Crear un ReqIa con el prompt recibido
-        ReqIa reqIa = new ReqIa();
-        reqIa.setTextIA(prompt);
-
-        // Crear el objeto ReqBase
-        ReqBase<ReqIa> reqBase = new ReqBase<>();
-        reqBase.setData(reqIa);
-
-        // Llamar al servicio
-        RespBase<RespIa> result = iAService.getIADeepSeek(token, reqBase);  // Pasa ReqBase<ReqIa> en lugar de String
+        // Llamar al servicio, que ahora se encargará de construir el prompt
+        // y devolver el formato ChatResponse.
+        RespBase<ChatResponse> result = iAService.getChatbotResponse(httpServletRequest.getHeader("Authorization"), chatRequest);
 
         return ResponseEntity.ok(result);
     }
-
 
 }

@@ -4,6 +4,8 @@ import org.springframework.web.multipart.MultipartFile;
 import pillihuaman.com.pe.lib.common.MyJsonWebToken;
 import pillihuaman.com.pe.lib.common.ReqBase;
 import pillihuaman.com.pe.lib.common.RespBase;
+import pillihuaman.com.pe.neuroIA.dto.ChatRequest;
+import pillihuaman.com.pe.neuroIA.dto.ChatResponse;
 import pillihuaman.com.pe.neuroIA.dto.ReqIa;
 import pillihuaman.com.pe.neuroIA.dto.RespIa;
 
@@ -17,4 +19,5 @@ public interface IAService {
 
 	RespBase<RespIa> getIADeepSeek(MyJsonWebToken jwt, ReqBase<ReqIa> request) throws IOException;
 	RespBase<RespIa> analyzeImageOpenIA(MyJsonWebToken jwt, MultipartFile file) throws IOException;
+	RespBase<ChatResponse> getChatbotResponse(String token, ChatRequest chatRequest) throws IOException;
 }

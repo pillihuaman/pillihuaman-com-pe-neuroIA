@@ -7,23 +7,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 import pillihuaman.com.pe.lib.common.MyJsonWebToken;
-import pillihuaman.com.pe.neuroIA.Help.MaestrosUtilidades;
+import pillihuaman.com.pe.neuroIA.dto.ProductDTO;
 
+import java.net.URI;
 import java.util.*;
 
 @Service
 public class ExternalApiService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ExternalApiService.class);
+    public static final Logger logger = LoggerFactory.getLogger(ExternalApiService.class);
     private final RestTemplate restTemplate;
 
     @Value("${external-api.url}")
     private String securityApiUrl;
+    @Value("${external-api-support.url}")
+    private String securityApiSupportUrl;
     @Value("${deepseek.api.url}")
     private String deepseekApiUrl;
     @Value("${deepseek.api.key}")
@@ -485,5 +490,63 @@ public class ExternalApiService {
     }
 
 
+    public List<ProductDTO> searchProductsFromSupport(String query, int limit, String authToken) {
+        logger.info("Iniciando búsqueda de productos en el servicio de soporte. Query: '{}', Limit: {}", query, limit);
 
+        // *** PASO 1: CONSTRUIR LA URI DE FORMA SEGURA ***
+        // Construimos el objeto URI pero NO lo convertimos a String.
+        // El método .build() se encarga de la codificación correcta una sola vez.
+        URI uri = UriComponentsBuilder.fromHttpUrl(securityApiSupportUrl)
+                .path("/private/v1/support/search-for-ia")
+                .queryParam("q", query)
+                .queryParam("limit", limit)
+                .build()
+                .toUri();
+
+        logger.debug("URI construida para la llamada externa: {}", uri);
+
+        try {
+            // 2. Preparar la solicitud GET con la cabecera de autorización.
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
+            if (authToken != null && !authToken.isEmpty()) {
+                headers.set("Authorization", authToken);
+            }
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            // *** PASO 2: REALIZAR LA LLAMADA CON RESTTEMPLATE USANDO EL OBJETO URI ***
+            // Al pasarle el objeto URI, RestTemplate no volverá a codificarlo.
+            ResponseEntity<ExternalApiResponseDTO<List<ProductDTO>>> response = restTemplate.exchange(
+                    uri, // <-- Pasamos el objeto URI, no el String.
+                    HttpMethod.GET,
+                    entity,
+                    new ParameterizedTypeReference<ExternalApiResponseDTO<List<ProductDTO>>>() {}
+            );
+
+            // 4. Procesar y devolver la respuesta (sin cambios).
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                ExternalApiResponseDTO<List<ProductDTO>> body = response.getBody();
+                if (body.getStatus() != null && body.getStatus().isSuccess()) {
+                    List<ProductDTO> products = body.getPayload();
+                    logger.info("Búsqueda exitosa. Se encontraron {} productos.", products != null ? products.size() : 0);
+                    return products != null ? products : Collections.emptyList();
+                } else {
+                    String errorMessage = body.getStatus() != null ? body.getStatus().getMessage() : "Estado de fallo desconocido";
+                    logger.warn("El servicio de soporte respondió con un estado de fallo interno: {}", errorMessage);
+                    return Collections.emptyList();
+                }
+            } else {
+                logger.warn("La búsqueda de productos no tuvo éxito. Status HTTP: {}", response.getStatusCode());
+                return Collections.emptyList();
+            }
+
+        } catch (HttpClientErrorException e) {
+            logger.error("Error del cliente (4xx) al llamar al servicio de soporte. Status: {}. Body: {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            return Collections.emptyList();
+        } catch (Exception e) {
+            logger.error("Error inesperado al conectar con el servicio de soporte en URL: {}", uri, e);
+            return Collections.emptyList();
+        }
+    }
 }
