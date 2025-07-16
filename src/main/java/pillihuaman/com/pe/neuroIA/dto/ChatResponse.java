@@ -14,7 +14,7 @@ import java.util.List;
 public class ChatResponse {
     private String reply;
     private List<ChatAction> actions;
-
+    private List<ProductDTO> productContext;
     @Data
     @Builder
     @NoArgsConstructor
