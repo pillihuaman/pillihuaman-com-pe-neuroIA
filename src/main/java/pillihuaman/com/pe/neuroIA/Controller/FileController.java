@@ -64,45 +64,48 @@ public class FileController {
                 String key = null;
                 if (file != null) {
                     key = UUID.randomUUID().toString();
-                    s3Service.uploadFile(key, file.getInputStream(), file.getSize(), file.getContentType());
+
+                    // --- INICIO DE LA LÓGICA DE DECISIÓN ---
+                    // Comprueba el valor de typeFile, ignorando mayúsculas/minúsculas.
+                    if ("quotation".equalsIgnoreCase(metaDTO.getTypeFile())) {
+                        // Si es "quotation", llama al nuevo método para el bucket de cotizaciones.
+                        s3Service.uploadFileToQuotationBucket(key, file.getInputStream(), file.getSize(), file.getContentType());
+                    } else {
+                        // Para cualquier otro caso, usa el método original.
+                        s3Service.uploadFile(key, file.getInputStream(), file.getSize(), file.getContentType());
+                    }
+                    // --- FIN DE LA LÓGICA DE DECISIÓN ---
                 }
 
                 FileMetadata metadata;
 
                 if (metaDTO.getId() != null && !metaDTO.getId().isEmpty()) {
-                    // ✅ ACTUALIZACIÓN
+                    // La lógica de actualización de metadatos no cambia.
                     Bson query = eq("_id", new ObjectId(metaDTO.getId()));
                     metadata = metadataRepository.findOneById(query);
-
                     if (metadata != null) {
                         if (file != null) {
-                            // ✅ Solo setea filename si es diferente al actual
                             if (!metadata.getFilename().equals(file.getOriginalFilename())) {
                                 metadata.setFilename(file.getOriginalFilename());
                             }
-
                             metadata.setS3Key(key);
                             metadata.setContentType(file.getContentType());
                             metadata.setSize(file.getSize());
                             metadata.setUploadTimestamp(System.currentTimeMillis());
                         }
-
                         metadata.setDimension(metaDTO.getDimension());
-                        metadata.setTypeFile(metaDTO.getTypeFile());
+                        metadata.setTypeFile(metaDTO.getTypeFile()); // Se guarda el typeFile recibido
                         metadata.setPosition(metaDTO.getPosition());
                         metadata.setStatus(true);
                         metadataRepository.updateOne(query, metadata);
-
                     } else {
                         throw new RuntimeException("No se encontró metadata con ID: " + metaDTO.getId());
                     }
-
                 } else {
-                    // ✅ INSERCIÓN
+                    // La lógica de inserción de metadatos no cambia.
                     if (file == null) {
                         throw new IllegalArgumentException("El archivo es obligatorio para una nueva inserción.");
                     }
-
                     metadata = new FileMetadata();
                     metadata.setFilename(file.getOriginalFilename());
                     metadata.setS3Key(key);
@@ -113,25 +116,24 @@ public class FileController {
                     metadata.setDimension(metaDTO.getDimension());
                     metadata.setUserId(token.getUser().getId().toString());
                     metadata.setUploadTimestamp(System.currentTimeMillis());
-                    metadata.setTypeFile(metaDTO.getTypeFile());
+                    metadata.setTypeFile(metaDTO.getTypeFile()); // Se guarda el typeFile recibido
                     metadata.setPosition(metaDTO.getPosition());
                     metadata.setStatus(true);
                     metadata = metadataRepository.save(metadata);
                 }
 
+                // La lógica para crear el DTO de respuesta no cambia.
                 RespFileMetadata dto = new RespFileMetadata();
                 dto.setId(metadata.getId().toString());
                 dto.setFilename(metadata.getFilename());
                 dto.setDimension(metadata.getDimension());
                 dto.setPosition(metadata.getPosition());
-                // dto.setUrl(s3Service.generatePresignedUrl(metadata.getS3Key(), Duration.ofMinutes(Constante.LIFE_TIME_IMG_AWS)));
 
                 return dto;
 
             } catch (Exception e) {
                 throw new RuntimeException("Error en procesamiento de metadata o archivo en índice " + i, e);
             }
-
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(dtoList);
