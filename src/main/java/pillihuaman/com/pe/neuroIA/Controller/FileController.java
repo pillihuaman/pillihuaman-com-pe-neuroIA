@@ -211,7 +211,7 @@ public class FileController {
     public ResponseEntity<List<RespFileMetadata>> getCatalogImagen(
             @RequestParam("typeImagen") String typeImagen,
             @RequestParam(value = "productId", required = false) String productId) { // productId ahora es opcional
-
+        productId="686868af8c3d12409a1f9b04";
         List<Bson> filters = new ArrayList<>();
         filters.add(eq("typeFile", typeImagen));
         filters.add(eq("status", true));
