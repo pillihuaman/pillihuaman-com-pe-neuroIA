@@ -6,9 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
@@ -60,14 +58,53 @@ public class S3ServiceImpl {
     }
 
     public void deleteFile(String key) {
-        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .build();
+        // Intenta eliminar del bucket principal
+        if (objectExists(bucketName, key)) {
+            logger.info("Archivo con clave '{}' encontrado en el bucket principal '{}'. Procediendo a eliminar.", key, bucketName);
+            deleteObjectFromBucket(bucketName, key);
+            return; // Termina si el archivo fue encontrado y eliminado
+        }
 
-        s3Client.deleteObject(deleteObjectRequest);
+        // Si no se encontró en el principal, intenta en el bucket de cotizaciones
+        if (objectExists(quotationBucketName, key)) {
+            logger.info("Archivo con clave '{}' no encontrado en el bucket principal. Encontrado en el bucket de cotizaciones '{}'. Procediendo a eliminar.", key, quotationBucketName);
+            deleteObjectFromBucket(quotationBucketName, key);
+            return;
+        }
+
+        logger.warn("El archivo con clave '{}' no fue encontrado en ninguno de los buckets configurados ('{}', '{}'). No se realizó ninguna eliminación.", key, bucketName, quotationBucketName);
+    }
+    private boolean objectExists(String bucket, String key) {
+        try {
+            HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .build();
+            s3Client.headObject(headObjectRequest);
+            return true;
+        } catch (NoSuchKeyException e) {
+            // Esto es esperado si el objeto no existe
+            return false;
+        }
     }
 
+    /**
+     * Realiza la operación de eliminación en un bucket específico.
+     */
+    private void deleteObjectFromBucket(String bucket, String key) {
+        try {
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .build();
+            s3Client.deleteObject(deleteObjectRequest);
+            logger.info("Archivo con clave '{}' eliminado exitosamente del bucket '{}'.", key, bucket);
+        } catch (Exception e) {
+            logger.error("Error al intentar eliminar el archivo con clave '{}' del bucket '{}'.", key, bucket, e);
+            // Dependiendo de la política de la aplicación, podrías querer relanzar la excepción
+            // throw new RuntimeException("Error al eliminar el archivo de S3", e);
+        }
+    }
     private void internalUpload(String targetBucket, String key, InputStream inputStream, long contentLength, String contentType) {
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(targetBucket) // Usa el nombre del bucket que se le pasa como parámetro
