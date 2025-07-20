@@ -7,8 +7,11 @@ import com.mongodb.client.model.Sorts;
 import jakarta.servlet.http.HttpServletRequest;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,9 +26,7 @@ import pillihuaman.com.pe.neuroIA.repository.files.FileMetadata;
 import pillihuaman.com.pe.neuroIA.repository.files.dao.FilesDAO;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -47,6 +48,7 @@ public class FileController {
     private HttpServletRequest httpServletRequest;
     @Autowired
     private ObjectMapper objectMapper;
+    private static final Logger logger = LoggerFactory.getLogger(S3ServiceImpl.class);
     @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
     public ResponseEntity<List<RespFileMetadata>> uploadFiles(
             @RequestPart(value = "files", required = false) MultipartFile[] files,
@@ -54,7 +56,8 @@ public class FileController {
             @RequestParam("productId") String productId) throws JsonProcessingException {
 
         MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
-        List<ReqFileMetadata> metadataDTOList = objectMapper.readValue(metadataJson, new TypeReference<List<ReqFileMetadata>>() {});
+        List<ReqFileMetadata> metadataDTOList = objectMapper.readValue(metadataJson, new TypeReference<List<ReqFileMetadata>>() {
+        });
 
         // Validamos que la cantidad de archivos coincida con la de metadatos si se envían archivos.
         if (files != null && files.length != metadataDTOList.size()) {
@@ -86,7 +89,8 @@ public class FileController {
                     // --- LÓGICA DE ACTUALIZACIÓN ---
                     Bson query = eq("_id", new ObjectId(metaDTO.getId()));
                     metadata = metadataRepository.findOneById(query);
-                    if (metadata == null) throw new RuntimeException("No se encontró metadata con ID: " + metaDTO.getId());
+                    if (metadata == null)
+                        throw new RuntimeException("No se encontró metadata con ID: " + metaDTO.getId());
 
                     if (s3Key != null) { // Si se subió un nuevo archivo para reemplazar
                         metadata.setS3Key(s3Key);
@@ -102,7 +106,8 @@ public class FileController {
                     metadataRepository.updateOne(query, metadata);
                 } else {
                     // --- LÓGICA DE INSERCIÓN ---
-                    if (file == null) throw new IllegalArgumentException("El archivo es obligatorio para una nueva inserción de metadatos.");
+                    if (file == null)
+                        throw new IllegalArgumentException("El archivo es obligatorio para una nueva inserción de metadatos.");
 
                     metadata = new FileMetadata();
                     metadata.setFilename(file.getOriginalFilename());
@@ -173,7 +178,7 @@ public class FileController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteFile(@PathVariable String id) {
-        Bson query = eq("_id", new ObjectId( id));
+        Bson query = eq("_id", new ObjectId(id));
         FileMetadata metadata = metadataRepository.findOneById(query);
         if (metadata == null) {
             return ResponseEntity.notFound().build();
@@ -211,7 +216,7 @@ public class FileController {
     public ResponseEntity<List<RespFileMetadata>> getCatalogImagen(
             @RequestParam("typeImagen") String typeImagen,
             @RequestParam(value = "productId", required = false) String productId) { // productId ahora es opcional
-        productId="686868af8c3d12409a1f9b04";
+        productId = "686868af8c3d12409a1f9b04";
         List<Bson> filters = new ArrayList<>();
         filters.add(eq("typeFile", typeImagen));
         filters.add(eq("status", true));
@@ -264,6 +269,62 @@ public class FileController {
 
         return ResponseEntity.ok(response);
     }
+        /**
+         * =========================================================================================
+         * NUEVA API: Generar URL Pre-Firmada para un Archivo
+         * =========================================================================================
+         * Este endpoint permite a otros microservicios obtener una URL de acceso temporal
+         * a un archivo sin necesidad de credenciales de AWS.
+         * <p>
+         * CÓMO USARLA:
+         * GET /private/v1/ia/files/generate-presigned-url?key=MI_CLAVE_S3&typeFile=MI_TIPO_DE_ARCHIVO
+         *
+         * @param key               La clave (key/UUID) del objeto en S3.
+         * @param typeFile          El tipo de archivo (ej: "quotation_logo", "product_image") para determinar el bucket.
+         * @param durationInMinutes La duración opcional de la validez de la URL en minutos (por defecto 30).
+         * @return Una respuesta JSON con la URL generada.
+         */
+        @GetMapping(path = "/generate-presigned-url", produces = MediaType.APPLICATION_JSON_VALUE)
+        public ResponseEntity<?> generatePresignedUrl(
+                @RequestParam String key,
+                @RequestParam String typeFile,
+                @RequestParam(required = false, defaultValue = "30") long durationInMinutes) {
+            // Opcional: Validar el token si es una API interna segura
+            try {
+                jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Token inválido o ausente."));
+            }
+
+            // Validación de parámetros de entrada
+            if (key == null || key.isBlank() || typeFile == null || typeFile.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Los parámetros 'key' y 'typeFile' son obligatorios."));
+            }
+
+            try {
+                Duration duration = Duration.ofMinutes(durationInMinutes);
+                String url = s3Service.generatePresignedUrl(key, duration);
+
+                if (url == null) {
+                    // Esto podría ocurrir si la clave no existe o hay un problema de permisos en S3.
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("error", "No se pudo generar la URL. Verifique que la clave y el tipo de archivo sean correctos."));
+                }
+
+                // Construir una respuesta JSON clara
+                Map<String, Object> response = new HashMap<>();
+                response.put("url", url);
+                response.put("key", key);
+                response.put("expiresInSeconds", duration.toSeconds());
+
+                return ResponseEntity.ok(response);
+
+            } catch (Exception e) {
+                logger.error("Error inesperado al generar la URL pre-firmada para la clave: {}", key, e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Error interno del servidor.", "message", e.getMessage()));
+            }
+        }
 
 
 
