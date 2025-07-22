@@ -145,6 +145,7 @@ public class FileController {
                         .uploadTimestamp(metadata.getUploadTimestamp())
                         .status(metadata.isStatus())
                         .order(metadata.getOrder())
+                        .s3Key(metadata.getS3Key())
                         .typeFile(metadata.getTypeFile())
                         .url(presignedUrl) // Se incluye la URL
                         .position(metadata.getPosition())

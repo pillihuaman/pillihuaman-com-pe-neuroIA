@@ -24,5 +24,6 @@ public class RespFileMetadata {
     private String typeFile;
     private String url;
     private String position;
+    private String s3Key;
     private String productId;
 }
