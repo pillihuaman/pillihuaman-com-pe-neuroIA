@@ -19,7 +19,7 @@ RUN mvn clean install -DskipTests --no-transfer-progress
 FROM amazoncorretto:17-alpine-jdk
 WORKDIR /app
 
-COPY --from=build /app/target/pillihuaman-com-pe-neuroIA-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/target/pillihuaman.com.pe.neuroIA-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8085
 
