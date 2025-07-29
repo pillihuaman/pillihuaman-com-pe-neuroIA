@@ -1,89 +1,117 @@
-name: Deploy NeuroIA Microservice to AWS EC2
+# =================================================================
+# === WORKFLOW DE DESPLIEGUE MODERNO CON DOCKER Y ECR ===
+# =================================================================
+# Este workflow automatiza la construcción de una imagen de Docker,
+# la sube al registro de contenedores de AWS (ECR) y le ordena
+# a tu instancia EC2 que despliegue la nueva versión del servicio.
+# =================================================================
+
+name: Build, Push to ECR, and Deploy to EC2
 
 on:
   push:
     branches:
-      - main
+      - master # O 'main', asegúrate de que coincida con tu rama principal
 
+# =================================================================
+# === VARIABLES DE ENTORNO (LA ÚNICA SECCIÓN A MODIFICAR) ===
+# =================================================================
 env:
-  AWS_REGION: us-east-2
-  EC2_REGION: us-east-1
-  EC2_INSTANCE_IP: 52.86.30.21  # ✅ IP corregida
+  # --- Configuración de AWS (Apunta a tu NUEVA cuenta) ---
+  AWS_REGION: us-east-1 # Asegúrate de que esta sea la región de tu EC2 y ECR
+  
+  # ▼▼▼ ¡ACCIÓN REQUERIDA! ▼▼▼
+  # Cambia estos dos valores para cada microservicio.
+  ECR_REPOSITORY: neuroia-app                 # Para neuroIA: neuroia-app | Para support: support-app
+  DOCKER_COMPOSE_SERVICE_NAME: neuroia-app    # Para neuroIA: neuroia-app | Para support: support-app
+  
+  # --- Configuración de EC2 (Usa los secretos de GitHub) ---
+  EC2_HOST: ${{ secrets.EC2_HOST_IP }}
   EC2_USER: ec2-user
-  JAR_NAME: pillihuaman.com.pe.neuroIA-0.0.1-SNAPSHOT.jar
-  APP_PORT: 8099
+  
+  # --- Configuración de CodeArtifact (Apunta a tu NUEVA cuenta) ---
+  CODEARTIFACT_DOMAIN: pillihuamanlib # O el nombre de tu nuevo dominio
+  CODEARTIFACT_OWNER_ID: 614520203803 # ID de tu NUEVA cuenta
 
+# =================================================================
+# === TRABAJO DE DESPLIEGUE ===
+# =================================================================
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
+      # Paso 1: Descargar el código del repositorio
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Set up AWS CLI
-        uses: aws-actions/configure-aws-credentials@v1
+      # Paso 2: Configurar las credenciales de AWS
+      # Usa el usuario IAM 'github-actions-deployer' que creamos
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Save EC2 key pair to file
-        run: |
-          echo "${{ secrets.EC2_KEY_PAIR_B64 }}" | base64 -d > ec2_key.pem
-          chmod 400 ec2_key.pem
+      # Paso 3: Iniciar sesión en el registro de contenedores de AWS (ECR)
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Debug key format
+      # Paso 4: Construir y subir la imagen de Docker
+      # Este paso ejecuta el 'Dockerfile' que creaste en tu proyecto.
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          file ec2_key.pem
-          head -n 5 ec2_key.pem
-
-      - name: Install Java and Maven
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk maven
-
-      - name: Authenticate with AWS CodeArtifact and configure Maven
-        run: |
+          # 1. Obtiene el token de CodeArtifact para que Docker pueda descargar dependencias
           CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
-            --domain pillihuamanlib \
-            --domain-owner 020510965219 \
-            --region ${{ env.AWS_REGION }} \
+            --domain ${{ env.CODEARTIFACT_DOMAIN }} \
+            --domain-owner ${{ env.CODEARTIFACT_OWNER_ID }} \
             --query authorizationToken \
             --output text)
 
-          echo "Token obtenido correctamente ✅"
+          echo "✅ Token de CodeArtifact obtenido."
 
-          mkdir -p ~/.m2
-          sed "s|{{AUTH_TOKEN}}|$CODEARTIFACT_AUTH_TOKEN|g" ci/settings-template.xml > ~/.m2/settings.xml
+          # 2. Construye la imagen de Docker, pasándole el token de forma segura
+          docker build \
+            --build-arg CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN \
+            -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest .
+          
+          echo "✅ Imagen de Docker construida."
 
-      - name: Verificar settings.xml generado
-        run: cat ~/.m2/settings.xml
+          # 3. Sube la imagen a ECR
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
+          
+          echo "✅ Imagen subida a ECR."
 
-      - name: Build the project with Maven
-        run: mvn clean install -DskipTests
-
-      - name: Verify generated JAR and print contents of target/
-        run: |
-          echo "Listing target directory contents:"
-          ls -lah target/
-
-          if [ -f "target/${{ env.JAR_NAME }}" ]; then
-            echo "✅ JAR file found: ${{ env.JAR_NAME }}"
-          else
-            echo "❌ ERROR: JAR file not found: target/${{ env.JAR_NAME }}"
-            exit 1
-          fi
-
-      - name: Copy JAR file to EC2 instance
-        run: |
-          scp -i ec2_key.pem -o StrictHostKeyChecking=no target/${{ env.JAR_NAME }} ${{ env.EC2_USER }}@${{ env.EC2_INSTANCE_IP }}:/home/${{ env.EC2_USER }}/
-
-      - name: Restart NeuroIA microservice
-        run: |
-          ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_INSTANCE_IP }} << EOF
-            echo "🔁 Stopping any running instance on port ${{ env.APP_PORT }}"
-            PID=\$(lsof -ti tcp:${{ env.APP_PORT }}) && kill -9 \$PID || echo "No process to kill"
-            echo "🚀 Starting new instance of ${{ env.JAR_NAME }}"
-            nohup java -jar /home/${{ env.EC2_USER }}/${{ env.JAR_NAME }} > log_neuroia.out 2>&1 &
-          EOF
+      # Paso 5: Desplegar la nueva imagen en la instancia EC2
+      # Se conecta por SSH y le ordena a Docker Compose que actualice el servicio.
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }} # Usa la nueva llave .pem
+          script: |
+            echo "🚀 Iniciando despliegue en el servidor..."
+            # Navega a la carpeta donde está tu docker-compose.yml
+            cd ~/mi-plataforma
+            
+            # Autentica Docker con ECR en la instancia EC2
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
+            
+            echo "✅ Login de ECR en EC2 exitoso."
+            
+            # Descarga la última versión de la imagen para el servicio específico
+            docker-compose pull ${{ env.DOCKER_COMPOSE_SERVICE_NAME }}
+            
+            # Reinicia solo ese servicio, sin afectar a los demás
+            docker-compose up -d --no-deps ${{ env.DOCKER_COMPOSE_SERVICE_NAME }}
+            
+            echo "✅ Servicio ${{ env.DOCKER_COMPOSE_SERVICE_NAME }} actualizado y corriendo."
+            
+            # (Opcional) Limpia imágenes antiguas que ya no están en uso para ahorrar espacio
+            docker image prune -f
