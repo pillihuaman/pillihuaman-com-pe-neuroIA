@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1
+      DOMAIN: pillihuamanlib
+      DOMAIN_OWNER: 614520203803
 
     steps:
       - name: Checkout code
@@ -29,12 +31,21 @@ jobs:
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
+      - name: Get CodeArtifact auth token
+        id: codeartifact-token
+        run: |
+          TOKEN=$(aws codeartifact get-authorization-token \
+            --domain $DOMAIN \
+            --domain-owner $DOMAIN_OWNER \
+            --query authorizationToken \
+            --output text)
+          echo "CODEARTIFACT_AUTH_TOKEN=$TOKEN" >> $GITHUB_ENV
+
       - name: Build, tag, and push Docker image to Amazon ECR
         env:
           ECR_REGISTRY: 614520203803.dkr.ecr.us-east-1.amazonaws.com
           ECR_REPOSITORY: neuroia-app
           IMAGE_TAG: latest
-          CODEARTIFACT_AUTH_TOKEN: ${{ secrets.CODEARTIFACT_AUTH_TOKEN }}
         run: |
           docker build \
             --build-arg CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN \
