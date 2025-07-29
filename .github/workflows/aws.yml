@@ -1,52 +1,36 @@
-# =================================================================
-# === WORKFLOW DE DESPLIEGUE MODERNO CON DOCKER Y ECR ===
-# =================================================================
-# Este workflow automatiza la construcción de una imagen de Docker,
-# la sube al registro de contenedores de AWS (ECR) y le ordena
-# a tu instancia EC2 que despliegue la nueva versión del servicio.
-# =================================================================
+# .github/workflows/deploy.yml
 
-name: Build, Push to ECR, and Deploy to EC2
+name: Build, Push to ECR, and Deploy Microservice
 
 on:
   push:
     branches:
-      - master # O 'main', asegúrate de que coincida con tu rama principal
+      - master # o 'main'
 
-# =================================================================
-# === VARIABLES DE ENTORNO (LA ÚNICA SECCIÓN A MODIFICAR) ===
-# =================================================================
 env:
   # --- Configuración de AWS (Apunta a tu NUEVA cuenta) ---
-  AWS_REGION: us-east-1 # Asegúrate de que esta sea la región de tu EC2 y ECR
-  
-  # ▼▼▼ ¡ACCIÓN REQUERIDA! ▼▼▼
-  # Cambia estos dos valores para cada microservicio.
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 614520203803.dkr.ecr.us-east-1.amazonaws.com
+
   ECR_REPOSITORY: neuroia-app                 # Para neuroIA: neuroia-app | Para support: support-app
   DOCKER_COMPOSE_SERVICE_NAME: neuroia-app    # Para neuroIA: neuroia-app | Para support: support-app
-  
+
   # --- Configuración de EC2 (Usa los secretos de GitHub) ---
   EC2_HOST: ${{ secrets.EC2_HOST_IP }}
   EC2_USER: ec2-user
-  
-  # --- Configuración de CodeArtifact (Apunta a tu NUEVA cuenta) ---
-  CODEARTIFACT_DOMAIN: pillihuamanlib # O el nombre de tu nuevo dominio
-  CODEARTIFACT_OWNER_ID: 614520203803 # ID de tu NUEVA cuenta
 
-# =================================================================
-# === TRABAJO DE DESPLIEGUE ===
-# =================================================================
+  # --- Configuración de CodeArtifact (Apunta a tu NUEVA cuenta) ---
+  CODEARTIFACT_DOMAIN: pillihuamanlib
+  CODEARTIFACT_OWNER_ID: 614520203803
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-      # Paso 1: Descargar el código del repositorio
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Paso 2: Configurar las credenciales de AWS
-      # Usa el usuario IAM 'github-actions-deployer' que creamos
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -54,64 +38,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Paso 3: Iniciar sesión en el registro de contenedores de AWS (ECR)
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Paso 4: Construir y subir la imagen de Docker
-      # Este paso ejecuta el 'Dockerfile' que creaste en tu proyecto.
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      - name: Build and Push Docker image to ECR
         run: |
-          # 1. Obtiene el token de CodeArtifact para que Docker pueda descargar dependencias
-          CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
-            --domain ${{ env.CODEARTIFACT_DOMAIN }} \
-            --domain-owner ${{ env.CODEARTIFACT_OWNER_ID }} \
-            --query authorizationToken \
-            --output text)
-
-          echo "✅ Token de CodeArtifact obtenido."
-
-          # 2. Construye la imagen de Docker, pasándole el token de forma segura
+          CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ env.CODEARTIFACT_DOMAIN }} --domain-owner ${{ env.CODEARTIFACT_OWNER_ID }} --query authorizationToken --output text)
           docker build \
             --build-arg CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN \
-            -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest .
-          
-          echo "✅ Imagen de Docker construida."
+            -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
-          # 3. Sube la imagen a ECR
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
-          
-          echo "✅ Imagen subida a ECR."
-
-      # Paso 5: Desplegar la nueva imagen en la instancia EC2
-      # Se conecta por SSH y le ordena a Docker Compose que actualice el servicio.
-      - name: Deploy to EC2
+      - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
-          key: ${{ secrets.EC2_PRIVATE_KEY }} # Usa la nueva llave .pem
+          username: ${{ env.EC_USER }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
-            echo "🚀 Iniciando despliegue en el servidor..."
-            # Navega a la carpeta donde está tu docker-compose.yml
             cd ~/mi-plataforma
-            
-            # Autentica Docker con ECR en la instancia EC2
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-            
-            echo "✅ Login de ECR en EC2 exitoso."
-            
-            # Descarga la última versión de la imagen para el servicio específico
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
             docker-compose pull ${{ env.DOCKER_COMPOSE_SERVICE_NAME }}
-            
-            # Reinicia solo ese servicio, sin afectar a los demás
             docker-compose up -d --no-deps ${{ env.DOCKER_COMPOSE_SERVICE_NAME }}
-            
-            echo "✅ Servicio ${{ env.DOCKER_COMPOSE_SERVICE_NAME }} actualizado y corriendo."
-            
-            # (Opcional) Limpia imágenes antiguas que ya no están en uso para ahorrar espacio
             docker image prune -f
