@@ -5,7 +5,7 @@ name: Build, Push to ECR, and Deploy Microservice
 on:
   push:
     branches:
-      - master # o 'main'
+      - main # o 'main'
 
 env:
   # --- Configuración de AWS (Apunta a tu NUEVA cuenta) ---
