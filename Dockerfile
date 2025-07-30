@@ -21,6 +21,6 @@ WORKDIR /app
 
 COPY --from=build /app/target/pillihuaman.com.pe.neuroIA-0.0.1-SNAPSHOT.jar app.jar
 
-EXPOSE 8085
+EXPOSE 8099
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
