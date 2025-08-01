@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.model.Sorts;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -32,14 +33,13 @@ import java.util.stream.IntStream;
 
 import static com.mongodb.client.model.Filters.and;
 import static com.mongodb.client.model.Filters.eq;
-
+@Slf4j
 @RestController
 @RequestMapping(path = Constante.BASE_ENDPOINT + Constante.ENDPOINT + "/files")
 public class FileController {
-
     @Autowired
     private S3ServiceImpl s3Service;
-
+    private static final Logger logger = LoggerFactory.getLogger(FileController.class);
     @Autowired
     private FilesDAO metadataRepository;
     @Autowired
@@ -48,7 +48,8 @@ public class FileController {
     private HttpServletRequest httpServletRequest;
     @Autowired
     private ObjectMapper objectMapper;
-    private static final Logger logger = LoggerFactory.getLogger(S3ServiceImpl.class);
+
+
     @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
     public ResponseEntity<List<RespFileMetadata>> uploadFiles(
             @RequestPart(value = "files", required = false) MultipartFile[] files,
@@ -213,42 +214,52 @@ public class FileController {
     }
 // En tu FileController.java
 
+
     @GetMapping("/getCatalogImagen")
     public ResponseEntity<List<RespFileMetadata>> getCatalogImagen(
             @RequestParam("typeImagen") String typeImagen,
-            @RequestParam(value = "productId", required = false) String productId) { // productId ahora es opcional
-      //  productId = "686868af8c3d12409a1f9b04";
+            @RequestParam(value = "productId", required = false) String productId) {
+
+        log.info("➡️ Llamada a /getCatalogImagen con typeImagen='{}' y productId='{}'", typeImagen, productId);
+
         List<Bson> filters = new ArrayList<>();
         filters.add(eq("typeFile", typeImagen));
         filters.add(eq("status", true));
 
         Integer limit = null;
-        Bson orderBy = null;
+        Bson orderBy;
 
         if (productId != null && !productId.trim().isEmpty()) {
             if (!ObjectId.isValid(productId)) {
+                log.warn("❌ productId inválido recibido: '{}'", productId);
                 return ResponseEntity.badRequest().body(null);
             }
+            log.debug("🔍 Agregando filtro por productId: {}", productId);
             filters.add(eq("productId", new ObjectId(productId)));
-            orderBy = Sorts.ascending("order"); // Ordenar por campo 'order' si existe
+            orderBy = Sorts.ascending("order");
 
         } else {
-            orderBy = Sorts.descending("uploadTimestamp"); // Ordenar por fecha de subida
-            limit = 50; // Limitar a 20 resultados
+            log.debug("🔍 Sin productId, usando orden por uploadTimestamp descendente y limitando a 50 resultados");
+            orderBy = Sorts.descending("uploadTimestamp");
+            limit = 50;
         }
 
         Bson query = and(filters);
+        log.debug("📄 Filtros finales: {}", query.toBsonDocument().toJson());
 
-        // --- LLAMADA AL NUEVO MÉTODO DEL DAO ---
         List<FileMetadata> files = metadataRepository.findAllByFilter(query, orderBy, limit);
 
         if (files == null || files.isEmpty()) {
+            log.info("📭 No se encontraron archivos para los filtros especificados");
             return ResponseEntity.noContent().build();
         }
+
+        log.info("📦 Se encontraron {} archivos", files.size());
 
         Duration duration = Duration.ofMinutes(Constante.LIFE_TIME_IMG_AWS);
         List<RespFileMetadata> response = files.stream().map(file -> {
             String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
+            log.debug("🖼️ Archivo: id={}, filename={}, url={}", file.getId(), file.getFilename(), presignedUrl);
             return RespFileMetadata.builder()
                     .id(file.getId().toString())
                     .filename(file.getFilename())
@@ -263,13 +274,14 @@ public class FileController {
                     .typeFile(file.getTypeFile())
                     .url(presignedUrl)
                     .position(file.getPosition())
-                    // Si la imagen de la home está asociada a un producto, también puedes incluir su ID
                     .productId(file.getProductId() != null ? file.getProductId().toString() : null)
                     .build();
         }).collect(Collectors.toList());
 
+        log.info("✅ Respuesta generada con {} elementos", response.size());
         return ResponseEntity.ok(response);
     }
+
         /**
          * =========================================================================================
          * NUEVA API: Generar URL Pre-Firmada para un Archivo
