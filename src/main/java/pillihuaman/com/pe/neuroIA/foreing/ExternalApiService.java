@@ -25,8 +25,7 @@ public class ExternalApiService {
     public static final Logger logger = LoggerFactory.getLogger(ExternalApiService.class);
     private final RestTemplate restTemplate;
 
-    @Value("${external-api.url}")
-    private String securityApiUrl;
+
     @Value("${external-api-support.url}")
     private String securityApiSupportUrl;
     @Value("${deepseek.api.url}")
@@ -41,41 +40,8 @@ public class ExternalApiService {
         this.restTemplate = restTemplate;
     }
 
-    public MyJsonWebToken fetchData(String apiurl, String tok) {
-        try {
-            logger.debug("Fetching data from: {}", securityApiUrl + apiurl + tok);
-            return restTemplate.getForObject(securityApiUrl + apiurl + tok, MyJsonWebToken.class);
-        } catch (Exception e) {
-            logger.error("Error fetching data from external API", e);
-            throw e;
-        }
-    }
 
-    public boolean isTokenValid(@NotNull String token) {
-        logger.debug("Validating token");
-        try {
-            String[] parts = token.split("\\.");
-            if (parts.length == 3) {
-                String payload = new String(Base64.getDecoder().decode(parts[1]));
-                logger.debug("Token payload: {}", payload);
-            }
 
-            String url = securityApiUrl + "/api/v1/auth/getUserByToken?request=" + token;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + token);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<Object> response = restTemplate.exchange(
-                    url, HttpMethod.GET, entity, Object.class);
-
-            boolean isValid = response.getStatusCode() == HttpStatus.OK && response.getBody() != null;
-            logger.debug("Token validation result: {}", isValid);
-            return isValid;
-        } catch (Exception e) {
-            logger.error("Token validation failed", e);
-            return false;
-        }
-    }
 
     public String getChatResponse(String prompt) {
         logger.info("Getting chat response for prompt: {}", prompt);
