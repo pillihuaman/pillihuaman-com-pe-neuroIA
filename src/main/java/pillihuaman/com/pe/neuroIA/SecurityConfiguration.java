@@ -32,41 +32,32 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Deshabilitamos CSRF
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // Habilitamos CORS usando la configuración global de WebConfig.java
                 .cors(withDefaults())
-
-                // Definimos las reglas de autorización para las rutas
                 .authorizeHttpRequests(auth -> auth
+                        // 1. RUTAS PÚBLICAS: sin autenticación
                         .requestMatchers(
-                                // Rutas públicas explícitas para este servicio
-                                "/private/v1/ia/files/getCatalogImagen",
-
-                                // Rutas que delegan la autenticación al servicio de seguridad
                                 "/api/v1/auth/**",
-
-                                // Rutas públicas para la documentación de la API
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
-                        ).permitAll() // Permite el acceso a estas rutas sin autenticación.
+                        ).permitAll()
 
-                        // Define reglas específicas basadas en roles/autoridades
-                        .requestMatchers("/private/**").hasAnyAuthority("USER", "ADMIN")
+                        // 2. RUTAS PRIVADAS ESPECÍFICAS: Las más específicas primero.
+                        // Esta ruta de subida necesita un rol de servicio o de admin.
+                        .requestMatchers("/private/v1/ia/files/upload").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/private/v1/ia/files/delete/**").hasAnyAuthority("ADMIN", "USER")
 
-                        .anyRequest().authenticated() // CUALQUIER OTRA ruta requiere autenticación.
+                        // 3. RUTAS PRIVADAS GENERALES: Cualquier usuario autenticado puede acceder.
+                        // Esta regla es ahora más permisiva y se aplica a lo que no coincidió antes.
+                        .requestMatchers("/private/**").authenticated()
+
+                        // 4. FALLBACK: Cualquier otra ruta no definida requiere autenticación.
+                        .anyRequest().authenticated()
                 )
-
-                // Configuramos la gestión de sesiones para que sea SIN ESTADO
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-
-                // Añadimos nuestro filtro JWT para validar tokens en cada petición
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-
-                // Configuramos el logout
                 .logout(logout -> logout
                         .logoutUrl("/api/v1/auth/logout")
                         .logoutSuccessHandler((request, response, authentication) -> SecurityContextHolder.clearContext())
