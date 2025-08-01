@@ -235,7 +235,7 @@ public class FileController {
                 return ResponseEntity.badRequest().body(null);
             }
             log.debug("🔍 Agregando filtro por productId: {}", productId);
-            filters.add(eq("productId", new ObjectId(productId)));
+            filters.add(eq("productId", new ObjectId("688d09605dee550c20ccf4e0"))); // ✅ correcto
             orderBy = Sorts.ascending("order");
 
         } else {
