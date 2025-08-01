@@ -290,29 +290,34 @@ public class FileController {
                 @RequestParam String key,
                 @RequestParam String typeFile,
                 @RequestParam(required = false, defaultValue = "30") long durationInMinutes) {
-            // Opcional: Validar el token si es una API interna segura
+            logger.info("🔐 [generatePresignedUrl] Solicitud recibida. key={}, typeFile={}, duration={} min", key, typeFile, durationInMinutes);
+
             try {
                 jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
             } catch (Exception e) {
+                logger.warn("⚠️ [generatePresignedUrl] Token inválido o ausente.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Token inválido o ausente."));
             }
 
-            // Validación de parámetros de entrada
             if (key == null || key.isBlank() || typeFile == null || typeFile.isBlank()) {
+                logger.warn("❌ [generatePresignedUrl] Parámetros inválidos. key={}, typeFile={}", key, typeFile);
                 return ResponseEntity.badRequest().body(Map.of("error", "Los parámetros 'key' y 'typeFile' son obligatorios."));
             }
 
             try {
                 Duration duration = Duration.ofMinutes(durationInMinutes);
+                logger.info("🕐 [generatePresignedUrl] Generando URL con duración de {} segundos", duration.toSeconds());
+
                 String url = s3Service.generatePresignedUrl(key, duration);
 
                 if (url == null) {
-                    // Esto podría ocurrir si la clave no existe o hay un problema de permisos en S3.
+                    logger.warn("❌ [generatePresignedUrl] No se pudo generar la URL para key: {}", key);
                     return ResponseEntity.status(HttpStatus.NOT_FOUND)
                             .body(Map.of("error", "No se pudo generar la URL. Verifique que la clave y el tipo de archivo sean correctos."));
                 }
 
-                // Construir una respuesta JSON clara
+                logger.info("✅ [generatePresignedUrl] URL generada con éxito: {}", url);
+
                 Map<String, Object> response = new HashMap<>();
                 response.put("url", url);
                 response.put("key", key);
@@ -321,7 +326,7 @@ public class FileController {
                 return ResponseEntity.ok(response);
 
             } catch (Exception e) {
-                logger.error("Error inesperado al generar la URL pre-firmada para la clave: {}", key, e);
+                logger.error("🔥 [generatePresignedUrl] Error inesperado al generar la URL para key: {}", key, e);
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("error", "Error interno del servidor.", "message", e.getMessage()));
             }
