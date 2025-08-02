@@ -23,7 +23,7 @@ public class FileMetadata {
     private int order = 1;
     private String position="CAT_IMG_1"; //Catalogo imagenes position  CAT_IMG_1 ,CAT_IMG_2
     private  String url;
-    private ObjectId productId;
+    private String productId;
 
 
 }

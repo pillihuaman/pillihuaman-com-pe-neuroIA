@@ -3,6 +3,7 @@ package pillihuaman.com.pe.neuroIA.Controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -113,9 +114,7 @@ public class FileController {
                     metadata = new FileMetadata();
                     metadata.setFilename(file.getOriginalFilename());
                     metadata.setS3Key(s3Key);
-                    if (ObjectId.isValid(productId)) {
-                        metadata.setProductId(new ObjectId(productId));
-                    }
+                    metadata.setProductId(productId);
                     metadata.setContentType(file.getContentType());
                     metadata.setSize(file.getSize());
                     metadata.setHashCode(UUID.randomUUID().toString());
@@ -235,7 +234,7 @@ public class FileController {
                 return ResponseEntity.badRequest().body(null);
             }
             log.debug("🔍 Agregando filtro por productId: {}", productId);
-            filters.add(eq("productId", new ObjectId("688d09605dee550c20ccf4e0"))); // ✅ correcto
+            filters.add(eq("productId", productId)); // ✅ correcto
             orderBy = Sorts.ascending("order");
 
         } else {
@@ -246,6 +245,9 @@ public class FileController {
 
         Bson query = and(filters);
         log.debug("📄 Filtros finales: {}", query.toBsonDocument().toJson());
+
+        Bson querys = Filters.eq("productId", productId);
+        FileMetadata d= metadataRepository.findOneById(querys);
 
         List<FileMetadata> files = metadataRepository.findAllByFilter(query, orderBy, limit);
 
