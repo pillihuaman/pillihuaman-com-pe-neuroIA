@@ -8,15 +8,24 @@ import pillihuaman.com.pe.lib.common.ReqBase;
 import pillihuaman.com.pe.lib.common.RespBase;
 import pillihuaman.com.pe.neuroIA.Service.FileProcessService;
 import pillihuaman.com.pe.neuroIA.Service.IAService;
-import pillihuaman.com.pe.neuroIA.dto.*;
+import pillihuaman.com.pe.neuroIA.dto.ChatRequest;
+import pillihuaman.com.pe.neuroIA.dto.ChatResponse;
+import pillihuaman.com.pe.neuroIA.dto.ProductDTO;
+import pillihuaman.com.pe.neuroIA.dto.ReqIa;
+import pillihuaman.com.pe.neuroIA.dto.RespIa;
 import pillihuaman.com.pe.neuroIA.foreing.ExternalApiService;
 import pillihuaman.com.pe.neuroIA.foreing.ExternalOPenIAService;
 import pillihuaman.com.pe.neuroIA.repository.store.dao.IaDAO;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static pillihuaman.com.pe.neuroIA.foreing.ExternalApiService.logger;
@@ -44,7 +53,7 @@ public class IAServiceImpl implements IAService {
     public RespBase<RespIa> getIAResponse(MyJsonWebToken jwt, ReqBase<ReqIa> request) {
         // Lógica original mantenida
         List<String> messages = new ArrayList<>();
-        messages.add("User: " + request.getData().getTextIA());
+        messages.add("User: " + request.getPayload().getTextIA());
         RespIa responseIa = new RespIa();
         responseIa.setTextIA(null);
         return RespBase.<RespIa>builder()
@@ -70,7 +79,7 @@ public class IAServiceImpl implements IAService {
     @Override
     public RespBase<RespIa> getIADeepSeek(MyJsonWebToken jwt, ReqBase<ReqIa> request) throws IOException {
         // Lógica original mantenida
-        String response = externalApiService.getChatResponse(request.getData().getTextIA());
+        String response = externalApiService.getChatResponse(request.getPayload().getTextIA());
         RespIa responseIa = new RespIa();
         responseIa.setTextIA(response);
         return RespBase.<RespIa>builder()

@@ -54,7 +54,7 @@ public class AwsController {
 
         MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
         AwsResourcesSummary data = awsAccountInfoService.getAllAwsResourcesSummaryAsObject();
-        response.setData(data);
+        response.setPayload(data);
         return ResponseEntity.ok(response);
 
     }

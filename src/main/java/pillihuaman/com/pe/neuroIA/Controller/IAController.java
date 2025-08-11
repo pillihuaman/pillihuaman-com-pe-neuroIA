@@ -4,7 +4,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import pillihuaman.com.pe.lib.common.MyJsonWebToken;
 import pillihuaman.com.pe.lib.common.ReqBase;
@@ -18,7 +23,6 @@ import pillihuaman.com.pe.neuroIA.dto.ReqIa;
 import pillihuaman.com.pe.neuroIA.dto.RespIa;
 
 import java.io.IOException;
-import java.util.Map;
 
 @RestController
 @RequestMapping(Constante.BASE_ENDPOINT + Constante.ENDPOINT + "/iaService")
@@ -44,7 +48,7 @@ public class IAController {
         request.setDescriptionIA(description);
         request.setTextIA(textIa);
         ReqBase<ReqIa> reqBase = new ReqBase<>();
-        reqBase.setData(request);
+        reqBase.setPayload(request);
         MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
         return ResponseEntity.ok(iAService.getIAResponse(token, reqBase));
     }

@@ -313,22 +313,22 @@ public class FileController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Token inválido o ausente."));
             }
 
-            if (key == null || key.isBlank() || typeFile == null || typeFile.isBlank()) {
-                logger.warn("❌ [generatePresignedUrl] Parámetros inválidos. key={}, typeFile={}", key, typeFile);
-                return ResponseEntity.badRequest().body(Map.of("error", "Los parámetros 'key' y 'typeFile' son obligatorios."));
-            }
-
-            try {
-                Duration duration = Duration.ofMinutes(durationInMinutes);
-                logger.info("🕐 [generatePresignedUrl] Generando URL con duración de {} segundos", duration.toSeconds());
-
-                String url = s3Service.generatePresignedUrl(key, duration);
-
-                if (url == null) {
-                    logger.warn("❌ [generatePresignedUrl] No se pudo generar la URL para key: {}", key);
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                            .body(Map.of("error", "No se pudo generar la URL. Verifique que la clave y el tipo de archivo sean correctos."));
+                if (key == null || key.isBlank() || typeFile == null || typeFile.isBlank()) {
+                    logger.warn("❌ [generatePresignedUrl] Parámetros inválidos. key={}, typeFile={}", key, typeFile);
+                    return ResponseEntity.badRequest().body(Map.of("error", "Los parámetros 'key' y 'typeFile' son obligatorios."));
                 }
+
+                try {
+                    Duration duration = Duration.ofMinutes(durationInMinutes);
+                    logger.info("🕐 [generatePresignedUrl] Generando URL con duración de {} segundos", duration.toSeconds());
+
+                    String url = s3Service.generatePresignedUrl(key, duration);
+
+                    if (url == null) {
+                        logger.warn("❌ [generatePresignedUrl] No se pudo generar la URL para key: {}", key);
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(Map.of("error", "No se pudo generar la URL. Verifique que la clave y el tipo de archivo sean correctos."));
+                    }
 
                 logger.info("✅ [generatePresignedUrl] URL generada con éxito: {}", url);
 
