@@ -2,23 +2,30 @@ package pillihuaman.com.pe.neuroIA.repository;
 
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import jakarta.annotation.PostConstruct;
+import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.bson.conversions.Bson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
+
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 
 public abstract class AzureAbstractMongoRepositoryImpl<T> implements BaseMongoRepository<T> {
-
+    private static final Logger log = LoggerFactory.getLogger(AzureAbstractMongoRepositoryImpl.class);
     protected String COLLECTION;
     protected String DS_WRITE;
     protected String DS_READ;
@@ -47,6 +54,7 @@ public abstract class AzureAbstractMongoRepositoryImpl<T> implements BaseMongoRe
 
         this.mongoClient = MongoClients.create(settings);
         this.database = mongoClient.getDatabase(databaseName).withCodecRegistry(codecRegistry); // <-- También aquí
+        log.info("✅ Conexión con MongoDB inicializada para la base de datos: {}", databaseName);
     }
 
     /**
@@ -216,5 +224,42 @@ public abstract class AzureAbstractMongoRepositoryImpl<T> implements BaseMongoRe
      * Guarda o actualiza un documento basado en su ID.
      */
 
+    protected void printAllDataFromCollection(String collectionName) {
+        if (this.database == null) {
+            log.error("🔥 La base de datos no está inicializada. No se puede imprimir la información.");
+            return;
+        }
+        try {
+            MongoCollection<Document> collection = this.database.getCollection(collectionName, Document.class);
+
+            log.info("========================================================================================");
+            log.info("IMPRIMIENDO INFORMACIÓN DE LA COLECCIÓN");
+            log.info("========================================================================================");
+            log.info("✅ Base de Datos: {}", this.database.getName());
+            log.info("✅ Colección    : {}", collectionName);
+            log.info("----------------------------------------------------------------------------------------");
+
+            long documentCount = collection.countDocuments();
+
+            if (documentCount == 0) {
+                log.warn("🟡 La colección '{}' está vacía. No hay documentos para mostrar.", collectionName);
+            } else {
+                log.info("⬇️  Encontrados {} documentos en la colección. Mostrando todos: ⬇️", documentCount);
+                FindIterable<Document> documents = collection.find();
+
+                // Iteramos e imprimimos cada documento en formato JSON
+                documents.forEach((Consumer<Document>) doc -> {
+                    log.info(doc.toJson());
+                });
+
+                log.info("----------------------------------------------------------------------------------------");
+                log.info("✅ Impresión de la colección '{}' finalizada.", collectionName);
+            }
+            log.info("========================================================================================");
+
+        } catch (Exception e) {
+            log.error("🔥 Error al intentar imprimir la información de la colección '{}': {}", collectionName, e.getMessage(), e);
+        }
+    }
 
 }

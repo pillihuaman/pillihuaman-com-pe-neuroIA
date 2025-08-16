@@ -239,6 +239,27 @@
             <artifactId>pillihuaman.com.pe.lib</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+
+        <!-- pom.xml -->
+
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version> <!-- O la versión más reciente que sea compatible -->
+        </dependency>
+        <!-- 1. Habilita la abstracción de caché de Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
+        <!-- 2. Añade Caffeine como la implementación de caché en memoria -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
+
     </dependencies>
 
     <repositories>

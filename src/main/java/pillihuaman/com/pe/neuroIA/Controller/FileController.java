@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Sorts;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.conversions.Bson;
@@ -16,23 +15,35 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import pillihuaman.com.pe.lib.common.MyJsonWebToken;
 import pillihuaman.com.pe.neuroIA.Help.Constante;
 import pillihuaman.com.pe.neuroIA.JwtService;
 import pillihuaman.com.pe.neuroIA.Service.Implement.S3ServiceImpl;
 import pillihuaman.com.pe.neuroIA.dto.ReqFileMetadata;
+import pillihuaman.com.pe.neuroIA.dto.ReqProductIds;
 import pillihuaman.com.pe.neuroIA.dto.RespFileMetadata;
 import pillihuaman.com.pe.neuroIA.repository.files.FileMetadata;
 import pillihuaman.com.pe.neuroIA.repository.files.dao.FilesDAO;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.mongodb.client.model.Filters.and;
 import static com.mongodb.client.model.Filters.eq;
 @Slf4j
 @RestController
@@ -161,7 +172,7 @@ public class FileController {
         return ResponseEntity.ok(dtoList);
     }
 
-
+    Duration duration = Duration.ofMinutes(Constante.LIFE_TIME_IMG_AWS);
     @GetMapping("/{id}")
     public ResponseEntity<?> downloadFile(@PathVariable String id) {
         Bson query = eq("_id", id);
@@ -221,67 +232,29 @@ public class FileController {
 
         log.info("➡️ Llamada a /getCatalogImagen con typeImagen='{}' y productId='{}'", typeImagen, productId);
 
-        List<Bson> filters = new ArrayList<>();
-        filters.add(eq("typeFile", typeImagen));
-        filters.add(eq("status", true));
-
-        Integer limit = null;
-        Bson orderBy;
+        // --- LÓGICA CORREGIDA ---
+        List<FileMetadata> files;
 
         if (productId != null && !productId.trim().isEmpty()) {
-            if (!ObjectId.isValid(productId)) {
-                log.warn("❌ productId inválido recibido: '{}'", productId);
-                return ResponseEntity.badRequest().body(null);
-            }
-            log.debug("🔍 Agregando filtro por productId: {}", productId);
-            filters.add(eq("productId", productId)); // ✅ correcto
-            orderBy = Sorts.ascending("order");
-
+            // Si se proporciona un productId, usamos el método que ya depuramos.
+            log.info("Filtrando por productId: {}", productId);
+            files = metadataRepository.findAllByProductId(productId);
         } else {
-            log.debug("🔍 Sin productId, usando orden por uploadTimestamp descendente y limitando a 50 resultados");
-            orderBy = Sorts.descending("uploadTimestamp");
-            limit = 50;
+            // Si no hay productId, podrías buscar por 'typeFile' o devolver todos.
+            // Aquí un ejemplo buscando solo por typeFile y status.
+            log.info("No se proporcionó productId. Buscando por typeImagen: {}", typeImagen);
+            Bson query = Filters.and(
+                    Filters.eq("typeFile", typeImagen),
+                    Filters.eq("status", true)
+            );
+            files = metadataRepository.findAllByFilter(query);
         }
 
-        Bson query = and(filters);
-        log.debug("📄 Filtros finales: {}", query.toBsonDocument().toJson());
-
-        Bson querys = Filters.eq("productId", productId);
-        FileMetadata d= metadataRepository.findOneById(querys);
-
-        List<FileMetadata> files = metadataRepository.findAllByFilter(query, orderBy, limit);
-
-        if (files == null || files.isEmpty()) {
+        if (files.isEmpty()) {
             log.info("📭 No se encontraron archivos para los filtros especificados");
             return ResponseEntity.noContent().build();
         }
-
-        log.info("📦 Se encontraron {} archivos", files.size());
-
-        Duration duration = Duration.ofMinutes(Constante.LIFE_TIME_IMG_AWS);
-        List<RespFileMetadata> response = files.stream().map(file -> {
-            String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
-            log.debug("🖼️ Archivo: id={}, filename={}, url={}", file.getId(), file.getFilename(), presignedUrl);
-            return RespFileMetadata.builder()
-                    .id(file.getId().toString())
-                    .filename(file.getFilename())
-                    .contentType(file.getContentType())
-                    .size(file.getSize())
-                    .hashCode(file.getHashCode())
-                    .dimension(file.getDimension())
-                    .userId(file.getUserId())
-                    .uploadTimestamp(file.getUploadTimestamp())
-                    .status(file.isStatus())
-                    .order(file.getOrder())
-                    .typeFile(file.getTypeFile())
-                    .url(presignedUrl)
-                    .position(file.getPosition())
-                    .productId(file.getProductId() != null ? file.getProductId().toString() : null)
-                    .build();
-        }).collect(Collectors.toList());
-
-        log.info("✅ Respuesta generada con {} elementos", response.size());
-        return ResponseEntity.ok(response);
+        return buildStaticMetadataResponse(files);
     }
 
         /**
@@ -347,5 +320,69 @@ public class FileController {
         }
 
 
+    @GetMapping(path = "/generate-url/{s3Key}")
+    public ResponseEntity<Map<String, String>> generatePresignedUrlForService(@PathVariable String s3Key) {
+        if (s3Key == null || s3Key.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "s3Key no puede ser nulo o vacío."));
+        }
+
+        try {
+            Duration duration = Duration.ofMinutes(Constante.LIFE_TIME_IMG_AWS);
+            String url = s3Service.generatePresignedUrl(s3Key, duration);
+
+            if (url == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "No se pudo generar la URL. Verifique que la clave sea correcta."));
+            }
+
+            // Devuelve un JSON simple: { "url": "https://..." }
+            return ResponseEntity.ok(Map.of("url", url));
+
+        } catch (Exception e) {
+            logger.error("🔥 Error inesperado al generar la URL para key: {}", s3Key, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error interno del servidor."));
+        }
+    }
+
+    @PostMapping("/getCatalogImagesByProducts")
+    public ResponseEntity<List<RespFileMetadata>> getCatalogImagesByProducts(@RequestBody ReqProductIds request) {
+        List<String> productIds = request.getProductIds();
+        log.info("➡️ Llamada a /getCatalogImagesByProducts con {} productIds", productIds != null ? productIds.size() : 0);
+
+        if (productIds == null || productIds.isEmpty()) {
+            log.warn("📭 La lista de productIds en el request está vacía o es nula.");
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<FileMetadata> files = metadataRepository.findAllByProductIds(productIds);
+        return buildStaticMetadataResponse(files);
+    }
+    private ResponseEntity<List<RespFileMetadata>> buildStaticMetadataResponse(List<FileMetadata> files) {
+        if (files == null || files.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        List<RespFileMetadata> response = files.stream().map(file -> {
+            String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
+            return RespFileMetadata.builder()
+                    .id(file.getId().toString())
+                    .filename(file.getFilename())
+                    .contentType(file.getContentType())
+                    .size(file.getSize())
+                    .hashCode(file.getHashCode())
+                    .dimension(file.getDimension())
+                    .userId(file.getUserId())
+                    .uploadTimestamp(file.getUploadTimestamp())
+                    .status(file.isStatus())
+                    .order(file.getOrder())
+                    .typeFile(file.getTypeFile())
+                    .url(presignedUrl)
+                    .position(file.getPosition())
+                    .productId(file.getProductId())
+                    .s3Key(file.getS3Key())
+                    .build();
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
 
 }
