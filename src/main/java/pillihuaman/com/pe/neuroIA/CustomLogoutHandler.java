@@ -15,4 +15,5 @@ public class CustomLogoutHandler implements LogoutHandler {
             System.out.println("User logged out: " + authentication.getName());
         }
     }
+
 }

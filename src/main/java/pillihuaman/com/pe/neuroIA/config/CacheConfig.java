@@ -17,6 +17,7 @@ public class CacheConfig {
     // Nombres de todas las cachés que usará este microservicio
     public static final String SIGNED_URL_CACHE = "signedUrlCache";
     public static final String FILE_METADATA_CACHE = "findAllByProductIds";
+    public static final String PROMPT_TEMPLATE_CACHE = "promptTemplateCache";
 
     @Bean("neuroIaCacheManager") // Le damos un nombre único y descriptivo
     @Primary // <-- ¡CRUCIAL! Le dice a Spring que este es el CacheManager principal.

@@ -1,5 +1,6 @@
 package pillihuaman.com.pe.neuroIA.Controller;
 
+import com.azure.json.implementation.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import pillihuaman.com.pe.neuroIA.dto.ChatRequest;
 import pillihuaman.com.pe.neuroIA.dto.ChatResponse;
 import pillihuaman.com.pe.neuroIA.dto.ReqIa;
 import pillihuaman.com.pe.neuroIA.dto.RespIa;
+import pillihuaman.com.pe.neuroIA.dto.SearchIntentResponse;
 
 import java.io.IOException;
 
@@ -67,6 +69,12 @@ public class IAController {
         // y devolver el formato ChatResponse.
         RespBase<ChatResponse> result = iAService.getChatbotResponse(httpServletRequest.getHeader("Authorization"), chatRequest);
 
+        return ResponseEntity.ok(result);
+    }
+    @PostMapping(value = "/analyze-search-intent", consumes = MediaType.TEXT_PLAIN_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<RespBase<SearchIntentResponse>> analyzeSearchIntent(@RequestBody String query) throws JsonProcessingException {
+        MyJsonWebToken token = jwtService.parseTokenToMyJsonWebToken(httpServletRequest.getHeader("Authorization"));
+        RespBase<SearchIntentResponse> result = iAService.analyzeSearchIntent(token, query);
         return ResponseEntity.ok(result);
     }
 

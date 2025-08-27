@@ -1,5 +1,6 @@
 package pillihuaman.com.pe.neuroIA.Service.Implement;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -8,11 +9,14 @@ import pillihuaman.com.pe.lib.common.ReqBase;
 import pillihuaman.com.pe.lib.common.RespBase;
 import pillihuaman.com.pe.neuroIA.Service.FileProcessService;
 import pillihuaman.com.pe.neuroIA.Service.IAService;
+import pillihuaman.com.pe.neuroIA.config.PromptNotFoundException;
 import pillihuaman.com.pe.neuroIA.dto.ChatRequest;
 import pillihuaman.com.pe.neuroIA.dto.ChatResponse;
 import pillihuaman.com.pe.neuroIA.dto.ProductDTO;
 import pillihuaman.com.pe.neuroIA.dto.ReqIa;
 import pillihuaman.com.pe.neuroIA.dto.RespIa;
+import pillihuaman.com.pe.neuroIA.dto.SearchIntentResponse;
+import pillihuaman.com.pe.neuroIA.foreing.DeepSeekService;
 import pillihuaman.com.pe.neuroIA.foreing.ExternalApiService;
 import pillihuaman.com.pe.neuroIA.foreing.ExternalOPenIAService;
 import pillihuaman.com.pe.neuroIA.repository.store.dao.IaDAO;
@@ -42,6 +46,15 @@ public class IAServiceImpl implements IAService {
     private ExternalOPenIAService externalOPenIAService;
     @Autowired
     private S3ServiceImpl s3Service;
+    private final DeepSeekService deepSeekService; // Inyectar el servicio refactorizado
+    private final ObjectMapper objectMapper;
+    private final PromptManagerService promptManagerService;
+    public IAServiceImpl(DeepSeekService deepSeekService, ObjectMapper objectMapper, PromptManagerService promptManagerService) {
+
+        this.deepSeekService = deepSeekService;
+        this.objectMapper = objectMapper;
+        this.promptManagerService = promptManagerService;
+    }
 
     private enum UserIntent {
         NEW_SEARCH,
@@ -154,6 +167,56 @@ public class IAServiceImpl implements IAService {
                 .payload(chatResponse)
                 .status(new RespBase.Status(true, null))
                 .build();
+    }
+    @Override
+    public RespBase<SearchIntentResponse> analyzeSearchIntent(MyJsonWebToken jwt, String query) {
+        long startTime = System.currentTimeMillis();
+
+        try {
+            String systemPrompt = promptManagerService.getAssembledPrompt("GLOBAL_SEARCH_INTENT_V1");
+            String fullPrompt = systemPrompt + "\nUser Query: \"" + query + "\"";
+
+            // 2. CALL DEEPSEEK
+            String rawJsonResponse = deepSeekService.getChatResponse(fullPrompt);
+
+            // --- THIS IS THE FIX ---
+            // 3. CLEAN THE AI'S RESPONSE BEFORE PARSING
+            String cleanJson = cleanAiJsonResponse(rawJsonResponse);
+
+            // 4. PARSE THE CLEANED JSON RESPONSE
+            SearchIntentResponse intentResponse = objectMapper.readValue(cleanJson, SearchIntentResponse.class);
+
+            // 5. ENRICH AND RETURN
+            intentResponse.setOriginalQuery(query);
+            intentResponse.setProcessingTimeMs(System.currentTimeMillis() - startTime);
+
+            return new RespBase<SearchIntentResponse>().ok(intentResponse);
+
+        } catch (Exception e) {
+            // Este bloque ahora atrapa PromptNotFoundException y otros errores de ejecución
+            logger.error("Error inesperado durante el análisis de intención para la consulta: '{}'", query, e);
+
+            // CONSTRUIR RESPUESTA DE ERROR (GENÉRICO)
+            String httpCode = (e instanceof PromptNotFoundException) ? "404" : "500";
+            String errorCode = (e instanceof PromptNotFoundException) ? "CONFIG-PROMPT-ERROR-001" : "IA-UNEXPECTED-ERROR-002";
+
+            RespBase.Status.Error error = RespBase.Status.Error.builder()
+                    .code(errorCode)
+                    .httpCode(httpCode)
+                    .messages(List.of(e.getMessage())) // Usamos el mensaje de la excepción para detalle
+                    .build();
+
+            RespBase.Status status = RespBase.Status.builder()
+                    .success(Boolean.FALSE)
+                    .error(error)
+                    .build();
+
+            return RespBase.<SearchIntentResponse>builder()
+                    .payload(null)
+                    .status(status)
+                    .trace(new RespBase.Trace())
+                    .build();
+        }
     }
 
     private UserIntent detectUserIntent(String userMessage, List<ProductDTO> productContext) {
@@ -287,5 +350,32 @@ public class IAServiceImpl implements IAService {
                     return sb.toString();
                 })
                 .collect(Collectors.joining());
+    }
+
+    /**
+     * Cleans the raw string response from an LLM to extract a pure JSON object.
+     * It handles cases where the JSON is wrapped in Markdown code blocks (```json ... ```).
+     * @param rawResponse The raw text string returned by the AI.
+     * @return A clean string that should be valid JSON.
+     */
+    private String cleanAiJsonResponse(String rawResponse) {
+        if (rawResponse == null) {
+            return "{}"; // Return empty JSON object if response is null
+        }
+
+        // Find the start of the JSON, which is the first '{'
+        int startIndex = rawResponse.indexOf('{');
+        // Find the end of the JSON, which is the last '}'
+        int endIndex = rawResponse.lastIndexOf('}');
+
+        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+            // Extract the substring from the first '{' to the last '}'
+            return rawResponse.substring(startIndex, endIndex + 1);
+        }
+
+        // If no JSON object is found, log a warning and return the raw response
+        // which will likely cause a parse error, but we've tried our best.
+        logger.warn("Could not find a valid JSON object within the AI's raw response. Response was: {}", rawResponse);
+        return rawResponse;
     }
 }
